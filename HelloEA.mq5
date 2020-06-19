@@ -83,11 +83,8 @@ void OnTick() {
    if (!checkBarCount() || !isNewBar()) {
       return;
    }
-
-   // Check state of open positions. Returns true if new positions can be opened, else false. 
-   if (!checkOpenPositions()) {
-      return;
-   }
+   
+   closePositionsAboveLossLimit();
    
    // runTrendingStrategy();
    runRSIStrategy();

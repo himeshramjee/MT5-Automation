@@ -7,9 +7,9 @@
 #property link      "https://www.mql5.com"
 
 input bool SetStopLoss = false; // Automatically set Stop Loss
-input bool SetTakeProfit = true; // Automatically set Take Profit
-input int StopLoss = 30;   // Stop Loss (Points)
-input int TakeProfit = 15000;// Take Profit (Points)
+input bool SetTakeProfit = false; // Automatically set Take Profit
+input int StopLoss = 0;   // Stop Loss (Pips)
+input int TakeProfit = 0;// Take Profit (Pips)
 
 int stopLoss, takeProfit;   // To be used for Stop Loss & Take Profit values
 MqlTick latestTickPrice;         // To be used for getting recent/latest price quotes

@@ -6,7 +6,7 @@
 #property copyright "Copyright 2020, MetaQuotes Software Corp."
 #property link      "https://www.mql5.com"
 
-input double lossLimitInCurrency = -9999.00; // Limit loss value per trade
+input double lossLimitInCurrency = 50.00; // Limit loss value per trade
 input int OpenPositionsLimit = 5; // Open Positions Limit
 input double Lot = 2;       // Lots to Trade
 
@@ -90,15 +90,13 @@ ENUM_ORDER_TYPE_FILLING getOrderFillMode() {
    return ORDER_FILLING_FOK;
 }
 
-bool checkOpenPositions() {
-   closePositionsAboveLossLimit();
-
+bool openPositionLimitReached() {
    if (PositionsTotal() >= OpenPositionsLimit) {
       // Print("Open Positions Limit reached. EA will only continue once open position count is less than or equal to ", OpenPositionsLimit, ". Open Positions count is ", PositionsTotal()); 
-      return false;
+      return true;
    }
    
-   return true;
+   return false;
 }
 
 void closePositionsAboveLossLimit() {
@@ -121,17 +119,15 @@ void closePositionsAboveLossLimit() {
          activeLossPositionCount++;
       }
       
-      if(profitLoss <= (lossLimitInCurrency)) {
+      if(profitLoss <= (lossLimitInCurrency * -1)) {
          lossPositionsToCloseCount++;
          PrintFormat("Closing loss position - %s, Ticket: %d. Symbol: %s. Profit/Loss: %f <= %f", EnumToString(positionType), ticket, symbol, profitLoss, lossLimitInCurrency * -1);
-         closeLossPosition(magic, ticket, symbol, positionType, volume);
+         closePosition(magic, ticket, symbol, positionType, volume);
       }
    }
-   
-   // PrintFormat("Position Summary - Active positions: %d. In profit: %d. In Loss: %d. Hit loss limit: %d.", activeLossPositionCount + activeProfitPositionCount, activeProfitPositionCount, activeLossPositionCount, lossPositionsToCloseCount);
 }
 
-bool closeLossPosition(ulong magic, ulong ticket, string symbol, ENUM_POSITION_TYPE positionType, double volume) {
+bool closePosition(ulong magic, ulong ticket, string symbol, ENUM_POSITION_TYPE positionType, double volume) {
    if(magic == EAMagic) {
       //--- zeroing the request and result values
       ZeroMemory(mTradeRequest);
@@ -158,7 +154,7 @@ bool closeLossPosition(ulong magic, ulong ticket, string symbol, ENUM_POSITION_T
          return false;
       }
       
-      PrintFormat("Closed Loss Position - retcode=%u  deal=%I64u  order=%I64u  ticket=%I64d.", mTradeResult.retcode, mTradeResult.deal, mTradeResult.order, ticket);
+      PrintFormat("Closed Position - retcode=%u  deal=%I64u  order=%I64u  ticket=%I64d.", mTradeResult.retcode, mTradeResult.deal, mTradeResult.order, ticket);
    }
    
    return true;

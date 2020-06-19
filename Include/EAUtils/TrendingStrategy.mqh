@@ -154,6 +154,10 @@ void runTrendingSellStrategy() {
 }
 
 void runTrendingStrategy() {
+
+   if (openPositionLimitReached()){
+      return;
+   }
  
    populateTrendingPrices();
 
