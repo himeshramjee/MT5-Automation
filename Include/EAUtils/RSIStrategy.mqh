@@ -128,7 +128,7 @@ void closeSellOrders() {
       ulong  magic = PositionGetInteger(POSITION_MAGIC);
       double volume = PositionGetDouble(POSITION_VOLUME);
       
-      if(rsiVal[0] <= rsiSellTakeProfitLevel) {
+      if(profitLoss > 0 && rsiVal[0] <= rsiSellTakeProfitLevel) {
          PrintFormat("Closing profit position - %s, Ticket: %d. Symbol: %s. Profit/Loss: %f. RSI: %f.", EnumToString(positionType), ticket, symbol, profitLoss, rsiVal[0]);
          closePosition(magic, ticket, symbol, positionType, volume);
       }
