@@ -23,6 +23,8 @@
 #property link      "https://www.mql5.com"
 #property version   "1.00"
 
+#include "PriceUtils.mqh"
+
 //--- input parameters
 // TODO: is uchar more efficient? 
 input int OpenPositionsLimit=5; // Open Positions Limit
