@@ -38,7 +38,7 @@ bool validateFreeMargin(string symb, double lots, ENUM_ORDER_TYPE type) {
    //--- if there are insufficient funds to perform the operation
    if(margin>free_margin) {
       //--- report the error and return false
-      Print("Not enough money for ",EnumToString(type)," ",lots," ",symb," Error code=",GetLastError());
+      PrintFormat("Not enough money for %s %d %s (Error code = %d). Margin is %f. Free Margin is %f.", EnumToString(type), lots, symb, GetLastError(), margin, free_margin);
       
       // FIXME: Method call?
       return(false);
