@@ -111,6 +111,9 @@ void runTrendingBuyStrategy() {
 
    if(Buy_Condition_1 && Buy_Condition_2) {
       if(Buy_Condition_3 && Buy_Condition_4) {
+         // Do we have enough cash to place an order?
+         validateFreeMargin(_Symbol, Lot, ORDER_TYPE_BUY);
+         
          mTradeRequest.price = NormalizeDouble(latestTickPrice.ask, _Digits);            // latest ask price
          if (SetStopLoss) {
             mTradeRequest.sl = latestTickPrice.ask - stopLoss * _Point ; // Stop Loss

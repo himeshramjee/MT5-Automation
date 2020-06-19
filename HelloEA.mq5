@@ -59,9 +59,6 @@ int OnInit() {
    }
    
    //--- Adjust for 5 or 3 digit price currency pairs (as oppposed to the typical 4 digit)
-   // _Digits, Digits() returns the number of decimal digits used to quote the current chart symbol
-   stopLoss = StopLoss;
-   takeProfit = TakeProfit;
    adjustDigitsForBroker();
    
    return(INIT_SUCCEEDED);

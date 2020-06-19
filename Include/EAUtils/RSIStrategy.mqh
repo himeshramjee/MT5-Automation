@@ -6,11 +6,12 @@
 #property copyright "Copyright 2020, MetaQuotes Software Corp."
 #property link      "https://www.mql5.com"
 
-input double rsiBuyLevel = 5.0; // RSI level to trigger Buy order
-input double rsiSellLevel = 90.0; // RSI level to trigger Sell order
+input double rsiBuyLevel = 15.0; // RSI level to trigger Buy order
+input double rsiSellLevel = 85.0; // RSI level to trigger Sell order
 
 double rsiVal[];
 int rsiHandle;
+bool doPlaceOrder = false;
 
 bool initRSIIndicators() {
    //--- Get handle for RSI indicator
@@ -57,18 +58,25 @@ void runRSIBuyStrategy() {
    /*
       Check for a Long/Buy Setup : 
          Trend?
-         RSI < 5%
+         RSI < x%
    */
    // Declare bool type variables to hold our Buy Conditions
-   bool Buy_Condition_1 = rsiVal[0] < rsiBuyLevel; // RSI < 5%
+   bool Buy_Condition_1 = rsiVal[0] < rsiBuyLevel; // RSI < x%
+   
+   // PrintFormat("Checking Buy condition - rsIVal = %f. rsiBuyLevel = %f", rsiVal[0], rsiBuyLevel);
    
    if(Buy_Condition_1) {
+      // Do we have enough cash to place an order?
+      validateFreeMargin(_Symbol, Lot, ORDER_TYPE_BUY);
+         
       mTradeRequest.price = NormalizeDouble(latestTickPrice.ask, _Digits);            // latest ask price
       if (SetStopLoss) {
-         mTradeRequest.sl = latestTickPrice.ask - stopLoss * _Point ; // Stop Loss
+         mTradeRequest.sl = mTradeRequest.price - stopLoss * _Point ; // Stop Loss
       }
-      mTradeRequest.tp = latestTickPrice.ask + takeProfit * _Point; // Take Profit
+      mTradeRequest.tp = mTradeRequest.price + takeProfit * _Point; // Take Profit
       mTradeRequest.type = ORDER_TYPE_BUY;                                         // Buy Order
+      
+      doPlaceOrder = true;
    }
 }
 
@@ -76,10 +84,10 @@ void runRSISellStrategy() {
    /*
       Check for a Short/Sell Setup : 
          Trend?
-         RSI > 95%
+         RSI > y%
    */
    // Declare bool type variables to hold our Sell Conditions
-   bool Sell_Condition_1 = rsiVal[0] > rsiSellLevel;    // RSI > 95%
+   bool Sell_Condition_1 = rsiVal[0] > rsiSellLevel;    // RSI > y%
    
    if(Sell_Condition_1) {
       // Do we have enough cash to place an order?
@@ -87,15 +95,18 @@ void runRSISellStrategy() {
       
       mTradeRequest.price = NormalizeDouble(latestTickPrice.bid, _Digits);           // latest Bid price
       if (SetStopLoss) {
-         mTradeRequest.sl = latestTickPrice.bid + stopLoss * _Point; // Stop Loss
+         mTradeRequest.sl = mTradeRequest.price + stopLoss * _Point; // Stop Loss
       }
-      mTradeRequest.tp = latestTickPrice.bid - takeProfit * _Point; // Take Profit
+      mTradeRequest.tp = mTradeRequest.price - takeProfit * _Point; // Take Profit
       mTradeRequest.type = ORDER_TYPE_SELL;                                         // Sell Order
+      
+      doPlaceOrder = true;
    }
 }
 
 void runRSIStrategy() {
- 
+   doPlaceOrder = false;
+   
    populateRSIPrices();
 
    // Now we can place either a Buy or Sell order
@@ -105,7 +116,7 @@ void runRSIStrategy() {
    
    runRSISellStrategy();
 
-   if (mTradeRequest.type == NULL) {
+   if (!doPlaceOrder) {
       // Print("Neither Buy nor Sell order conditions were met. No position will be opened.");
       return;
    }

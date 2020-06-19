@@ -6,7 +6,7 @@
 #property copyright "Copyright 2020, MetaQuotes Software Corp."
 #property link      "https://www.mql5.com"
 
-input bool SetStopLoss = true; // Automatically set Stop Loss
+input bool SetStopLoss = false; // Automatically set Stop Loss
 input bool SetTakeProfit = true; // Automatically set Take Profit
 input int StopLoss = 30;   // Stop Loss (Points)
 input int TakeProfit = 15000;// Take Profit (Points)
@@ -19,6 +19,9 @@ double priceClose; // Variable to store the close value of a bar
 
 // Adjust for 5 or 3 digit price currency pairs (as oppposed to the typical 4 digit)
 void adjustDigitsForBroker() {
+   stopLoss = StopLoss;
+   takeProfit = TakeProfit;
+   
    // _Digits, Digits() returns the number of decimal digits used to quote the current chart symbol
    if(_Digits == 5 || _Digits == 3){
       stopLoss = stopLoss * 10;

@@ -6,9 +6,9 @@
 #property copyright "Copyright 2020, MetaQuotes Software Corp."
 #property link      "https://www.mql5.com"
 
-input double lossLimitInCurrency = 10.00; // Limit loss value per trade
+input double lossLimitInCurrency = -9999.00; // Limit loss value per trade
 input int OpenPositionsLimit = 5; // Open Positions Limit
-input double Lot = 3;       // Lots to Trade
+input double Lot = 2;       // Lots to Trade
 
 // Order parameters
 MqlTradeRequest mTradeRequest;   // To be used for sending our trade requests
