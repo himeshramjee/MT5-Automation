@@ -6,6 +6,17 @@
 #property copyright "Copyright 2020, MetaQuotes Software Corp."
 #property link      "https://www.mql5.com"
 
+input bool SetStopLoss = true; // Automatically set Stop Loss
+input bool SetTakeProfit = true; // Automatically set Take Profit
+input int StopLoss = 30;   // Stop Loss (Points)
+input int TakeProfit = 15000;// Take Profit (Points)
+
+int stopLoss, takeProfit;   // To be used for Stop Loss & Take Profit values
+MqlTick latestTickPrice;         // To be used for getting recent/latest price quotes
+MqlRates mBarPriceInfo[];      // To be used to store the prices, volumes and spread of each bar
+
+double priceClose; // Variable to store the close value of a bar
+
 // Adjust for 5 or 3 digit price currency pairs (as oppposed to the typical 4 digit)
 void adjustDigitsForBroker() {
    // _Digits, Digits() returns the number of decimal digits used to quote the current chart symbol

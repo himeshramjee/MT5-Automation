@@ -9,8 +9,7 @@
 // EA parameters
 int EAMagic=10024; // EA Magic Number
 
-
-bool ValidateTradingPermissions() {
+bool validateTradingPermissions() {
    if(!TerminalInfoInteger(TERMINAL_TRADE_ALLOWED)) {
       Alert("Please enable automated trading in your client terminal. Find the 'Algo/Auto Trading' button on the toolbar.");
       return false;
@@ -38,7 +37,47 @@ bool ValidateTradingPermissions() {
    return true;
 }
 
-void ShowMetaInfo() {
+
+// Return true if we have enough bars to work with, else false.
+bool checkBarCount() {
+   int barCount = Bars(_Symbol,_Period);
+   if(barCount < 60) {
+      Print("EA will not activate until there are more than 60 bars. Current bar count is ", barCount, "."); // IntegerToString(barCount)
+      return false;
+   }
+   
+   return true;
+}
+
+bool isNewBar() {
+   // We will use the static previousTickTime variable to serve the bar time.
+   // At each OnTick execution we will check the current bar time with the saved one.
+   // If the bar time isn't equal to the saved time, it indicates that we have a new tick.
+   static datetime previousTickTime;
+   datetime newTickTime[1];
+   bool isNewBar = false;
+
+   // copying the last bar time to the element newTickTime[0]
+   int copied = CopyTime(_Symbol,_Period, 0, 1, newTickTime);
+   if(copied > 0) {
+      if(previousTickTime != newTickTime[0]) {
+         isNewBar = true;   // if it isn't a first call, the new bar has appeared
+         /*if(MQL5InfoInteger(MQL5_DEBUGGING)) {
+            Print("We have new bar here (", newTickTime[0], ") old time was ", previousTickTime, ".");
+         }*/
+         previousTickTime = newTickTime[0];
+      }
+   } else {
+      // TODO: Post to Journal
+      // Alert won't trigger within strategy tester
+      Alert("Error in copying historical times data, error = ", GetLastError());
+      ResetLastError();
+   }
+   
+   return isNewBar;
+}
+
+void showMetaInfo() {
    //--- obtain spread from the symbol properties
    bool spreadfloat=SymbolInfoInteger(Symbol(),SYMBOL_SPREAD_FLOAT);
    string comm=StringFormat("%s spread = %I64d points. ", spreadfloat?"floating":"fixed", SymbolInfoInteger(Symbol(),SYMBOL_SPREAD));

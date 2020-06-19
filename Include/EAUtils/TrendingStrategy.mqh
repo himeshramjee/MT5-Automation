@@ -7,28 +7,17 @@
 #property link      "https://www.mql5.com"
 
 //--- input parameters
-// TODO: is uchar more efficient? 
-input int OpenPositionsLimit = 5; // Open Positions Limit
-input bool SetStopLoss = true; // Automatically set Stop Loss
-input bool SetTakeProfit = true; // Automatically set Take Profit
-input int StopLoss = 30;   // Stop Loss (Points)
-input int TakeProfit = 15000;// Take Profit (Points)
 input int ADXPeriod = 8;   // ADX Period
 input int MAPeriod = 8;    // Moving Average Period
 input double AdxMin = 22.0;   // Minimum ADX Value
-input double Lot = 3;       // Lots to Trade
 
 //--- Price parameters
 int adxHandle; // handle for our ADX indicator
 int maHandle;  // handle for our Moving Average indicator
 double plsDI[],minDI[],adxVal[]; // Dynamic arrays to hold the values of +DI, -DI and ADX values for each bars
 double maVal[]; // Dynamic array to hold the values of Moving Average for each bars
-double priceClose; // Variable to store the close value of a bar
-int stopLoss, takeProfit;   // To be used for Stop Loss & Take Profit values
-MqlTick latestTickPrice;         // To be used for getting recent/latest price quotes
-MqlRates mBarPriceInfo[];      // To be used to store the prices, volumes and spread of each bar
 
-bool initIndicators() {
+bool initTrendingIndicators() {
 
    //--- Get handle for ADX indicator
    // NULL and 0 are the Symbol and Timeframe values respectively and values returned are from the currently active chart
@@ -64,53 +53,13 @@ bool initIndicators() {
    return true;
 }
 
-void releaseIndicators() {
+void releaseTrendingIndicators() {
    // Release indicator handles
    IndicatorRelease(adxHandle);
    IndicatorRelease(maHandle);
 }
 
-
-// Return true if we have enough bars to work with, else false.
-bool checkBarCount() {
-   int barCount = Bars(_Symbol,_Period);
-   if(barCount < 60) {
-      Print("EA will not activate until there are more than 60 bars. Current bar count is ", barCount, "."); // IntegerToString(barCount)
-      return false;
-   }
-   
-   return true;
-}
-
-bool isNewBar() {
-   // We will use the static previousTickTime variable to serve the bar time.
-   // At each OnTick execution we will check the current bar time with the saved one.
-   // If the bar time isn't equal to the saved time, it indicates that we have a new tick.
-   static datetime previousTickTime;
-   datetime newTickTime[1];
-   bool isNewBar = false;
-
-   // copying the last bar time to the element newTickTime[0]
-   int copied = CopyTime(_Symbol,_Period, 0, 1, newTickTime);
-   if(copied > 0) {
-      if(previousTickTime != newTickTime[0]) {
-         isNewBar = true;   // if it isn't a first call, the new bar has appeared
-         /*if(MQL5InfoInteger(MQL5_DEBUGGING)) {
-            Print("We have new bar here (", newTickTime[0], ") old time was ", previousTickTime, ".");
-         }*/
-         previousTickTime = newTickTime[0];
-      }
-   } else {
-      // TODO: Post to Journal
-      // Alert won't trigger within strategy tester
-      Alert("Error in copying historical times data, error =", GetLastError());
-      ResetLastError();
-   }
-   
-   return isNewBar;
-}
-
-void populatePrices() {
+void populateTrendingPrices() {
    // Get the last price quote using the MQL5 MqlTick Structure
    if(!SymbolInfoTick(_Symbol, latestTickPrice)) {
       // TODO: Post to Journal
@@ -126,9 +75,9 @@ void populatePrices() {
    }
    
    //--- Copy the new values of our indicators to buffers (arrays) using the handle
-   if(CopyBuffer(adxHandle, 0, 0, 3, adxVal) < 0 
-      || CopyBuffer(adxHandle, 1, 0, 3, plsDI) < 0
-      || CopyBuffer(adxHandle, 2, 0, 3, minDI) < 0) {
+   if(CopyBuffer(adxHandle, 0, 0, PRICE_CLOSE, adxVal) < 0 
+      || CopyBuffer(adxHandle, 1, 0, PRICE_CLOSE, plsDI) < 0
+      || CopyBuffer(adxHandle, 2, 0, PRICE_CLOSE, minDI) < 0) {
       // TODO: Post to Journal
       Alert("Error copying ADX indicator Buffers - error:",GetLastError(),"!!");
       return;
@@ -144,8 +93,7 @@ void populatePrices() {
    priceClose = mBarPriceInfo[1].close;
 }
 
-
-void runBuyStrategy1() {
+void runTrendingBuyStrategy() {
    /*
       Check for a long/Buy Setup : 
          MA-8 increasing upwards, 
@@ -173,7 +121,7 @@ void runBuyStrategy1() {
    }
 }
 
-void runSellStrategy1() {
+void runTrendingSellStrategy() {
    /*
       Check for a Short/Sell Setup : 
          MA-8 decreasing downwards, 
@@ -187,12 +135,10 @@ void runSellStrategy1() {
    bool Sell_Condition_3 = (adxVal[0] > AdxMin);                             // Current ADX value greater than minimum (22)
    bool Sell_Condition_4 = (plsDI[0] < minDI[0]);                             // -DI greater than +DI
    
-   // Print(StringFormat("Sell conditions: 1 = %s, 2 = %s, 3 = %s, 4 = %s", Sell_Condition_1 ? "True" : "False", Sell_Condition_2 ? "True" : "False", Sell_Condition_3 ? "True" : "False", Sell_Condition_4 ? "True" : "False"));
-   
    if(Sell_Condition_1 && Sell_Condition_2) {
       if(Sell_Condition_3 && Sell_Condition_4) {
          // Do we have enough cash to place an order?
-         ValidateFreeMargin(_Symbol, Lot, ORDER_TYPE_SELL);
+         validateFreeMargin(_Symbol, Lot, ORDER_TYPE_SELL);
          
          mTradeRequest.price = NormalizeDouble(latestTickPrice.bid, _Digits);           // latest Bid price
          if (SetStopLoss) {
@@ -205,27 +151,18 @@ void runSellStrategy1() {
 }
 
 void runTrendingStrategy() {
-   if (!checkBarCount() || !isNewBar()) {
-      return;
-   }
  
-   if (PositionsTotal() >= OpenPositionsLimit) {
-      // TODO: Post to journal
-      Print("Open Positions Limit reached. EA will only continue once open position count is less than or equal to ", OpenPositionsLimit, ". Open Positions count is ", PositionsTotal()); 
-      return;
-   }
- 
-   populatePrices();
+   populateTrendingPrices();
 
    // Now we can place either a Buy or Sell order
    setupGenericTradeRequest();
    
-   runBuyStrategy1();
+   runTrendingBuyStrategy();
    
-   runSellStrategy1();
+   runTrendingSellStrategy();
 
    if (mTradeRequest.type == NULL) {
-      Print("Neither Buy nor Sell order conditions were met. No position will be opened.");
+      // Print("Neither Buy nor Sell order conditions were met. No position will be opened.");
       return;
    }
    
@@ -237,11 +174,11 @@ void runTrendingStrategy() {
    }
 
    // Do we have enough cash to place an order?
-   if (!ValidateFreeMargin(_Symbol, Lot, mTradeRequest.type)) {
+   if (!validateFreeMargin(_Symbol, Lot, mTradeRequest.type)) {
       Print("Insufficient funds in account. Disable this EA until you sort that out.");
       return;
    }
 
    // Place the order
-   makeMoney();
+   sendOrder();
 }

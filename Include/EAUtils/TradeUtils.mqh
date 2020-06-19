@@ -6,11 +6,15 @@
 #property copyright "Copyright 2020, MetaQuotes Software Corp."
 #property link      "https://www.mql5.com"
 
+input double lossLimitInCurrency = 10.00; // Limit loss value per trade
+input int OpenPositionsLimit = 5; // Open Positions Limit
+input double Lot = 3;       // Lots to Trade
+
 // Order parameters
 MqlTradeRequest mTradeRequest;   // To be used for sending our trade requests
 MqlTradeResult mTradeResult;     // To be used to get our trade results
 
-bool ValidateFreeMargin(string symb, double lots, ENUM_ORDER_TYPE type) {
+bool validateFreeMargin(string symb, double lots, ENUM_ORDER_TYPE type) {
    //--- Getting the opening price
    MqlTick mqltick;
    SymbolInfoTick(symb,mqltick);
@@ -45,7 +49,7 @@ bool ValidateFreeMargin(string symb, double lots, ENUM_ORDER_TYPE type) {
 }
 
 // TODO: Note this example uses the pointer reference for description.
-bool ValidateOrderVolume(double volume, string &description) {
+bool validateOrderVolume(double volume, string &description) {
    //--- minimal allowed volume for trade operations
    double min_volume = SymbolInfoDouble(Symbol(), SYMBOL_VOLUME_MIN);
    if(volume < min_volume) {
@@ -75,7 +79,7 @@ bool ValidateOrderVolume(double volume, string &description) {
    return(true);
 }
 
-ENUM_ORDER_TYPE_FILLING GetOrderFillMode() {
+ENUM_ORDER_TYPE_FILLING getOrderFillMode() {
    //--- Obtain the value of the property that describes allowed filling modes
    int filling = (int) SymbolInfoInteger(_Symbol, SYMBOL_FILLING_MODE);
    
@@ -86,52 +90,109 @@ ENUM_ORDER_TYPE_FILLING GetOrderFillMode() {
    return ORDER_FILLING_FOK;
 }
 
-bool accountHasOpenPositions() {
-   return PositionSelect(_Symbol) == true;
-   /*
-   if (PositionSelect(_Symbol) == true) {
-      // we have an opened position, now check the type
-      if (PositionGetInteger(POSITION_TYPE) == POSITION_TYPE_BUY) {
-         buyOpened = true;
+bool checkOpenPositions() {
+   closePositionsAboveLossLimit();
+
+   if (PositionsTotal() >= OpenPositionsLimit) {
+      // Print("Open Positions Limit reached. EA will only continue once open position count is less than or equal to ", OpenPositionsLimit, ". Open Positions count is ", PositionsTotal()); 
+      return false;
+   }
+   
+   return true;
+}
+
+void closePositionsAboveLossLimit() {
+   int activeLossPositionCount = 0;
+   int activeProfitPositionCount = 0;
+   int lossPositionsToCloseCount = 0;
+   int openPositionCount = PositionsTotal(); // number of open positions
+   
+   for (int i = 0; i < openPositionCount; i++) { 
+      ulong ticket = PositionGetTicket(i);
+      string symbol = PositionGetSymbol(i);
+      double profitLoss = PositionGetDouble(POSITION_PROFIT);
+      ulong  magic = PositionGetInteger(POSITION_MAGIC);
+      double volume = PositionGetDouble(POSITION_VOLUME);
+      ENUM_POSITION_TYPE positionType = (ENUM_POSITION_TYPE) PositionGetInteger(POSITION_TYPE);    
+      
+      if(profitLoss >= 1) {
+         activeProfitPositionCount++;
+      } else {
+         activeLossPositionCount++;
       }
       
-      if(PositionGetInteger(POSITION_TYPE) == POSITION_TYPE_SELL) {
-         sellOpened = true;
+      if(profitLoss <= (lossLimitInCurrency)) {
+         lossPositionsToCloseCount++;
+         PrintFormat("Closing loss position - %s, Ticket: %d. Symbol: %s. Profit/Loss: %f <= %f", EnumToString(positionType), ticket, symbol, profitLoss, lossLimitInCurrency * -1);
+         closeLossPosition(magic, ticket, symbol, positionType, volume);
       }
    }
-   */
+   
+   // PrintFormat("Position Summary - Active positions: %d. In profit: %d. In Loss: %d. Hit loss limit: %d.", activeLossPositionCount + activeProfitPositionCount, activeProfitPositionCount, activeLossPositionCount, lossPositionsToCloseCount);
+}
+
+bool closeLossPosition(ulong magic, ulong ticket, string symbol, ENUM_POSITION_TYPE positionType, double volume) {
+   if(magic == EAMagic) {
+      //--- zeroing the request and result values
+      ZeroMemory(mTradeRequest);
+      ZeroMemory(mTradeResult);
+      
+      //--- setting the operation parameters
+      mTradeRequest.action = TRADE_ACTION_DEAL;        // type of trade operation
+      mTradeRequest.position = ticket;          // ticket of the position
+      mTradeRequest.symbol = symbol;          // symbol 
+      mTradeRequest.volume = volume;                   // volume of the position
+      mTradeRequest.deviation = 5;                        // allowed deviation from the price
+      mTradeRequest.magic = EAMagic;             // MagicNumber of the position
+      
+      //--- set the price and order type depending on the position type
+      if(positionType == POSITION_TYPE_BUY) {
+         mTradeRequest.price = SymbolInfoDouble(symbol,SYMBOL_BID);
+         mTradeRequest.type = ORDER_TYPE_SELL;
+      } else {
+         mTradeRequest.price = SymbolInfoDouble(symbol,SYMBOL_ASK);
+         mTradeRequest.type = ORDER_TYPE_BUY;
+      }
+      
+      if(!sendOrder()) {
+         return false;
+      }
+      
+      PrintFormat("Closed Loss Position - retcode=%u  deal=%I64u  order=%I64u  ticket=%I64d.", mTradeResult.retcode, mTradeResult.deal, mTradeResult.order, ticket);
+   }
+   
+   return true;
 }
 
 void setupGenericTradeRequest() {
    // Set generic order info
-   ZeroMemory(mTradeRequest);       // Initialization of mrequest structure
+   ZeroMemory(mTradeRequest);
+   ZeroMemory(mTradeResult);
    
    mTradeRequest.action = TRADE_ACTION_DEAL;                                    // immediate order execution
    mTradeRequest.symbol = _Symbol;                                              // currency pair
    mTradeRequest.volume = Lot;                                                  // number of lots to trade
    mTradeRequest.magic = EAMagic;                                              // Order Magic Number
-   mTradeRequest.type_filling = GetOrderFillMode();
+   mTradeRequest.type_filling = getOrderFillMode();
    mTradeRequest.deviation = 100;                                                 // Deviation from current price
    mTradeRequest.type = NULL;
 }
 
-void makeMoney() {
+bool sendOrder() {
    if (OrderSend(mTradeRequest, mTradeResult)) {
       // Basic validation passed so check returned result now
       // Request is completed or order placed 
       if(mTradeResult.retcode == 10009 || mTradeResult.retcode == 10008) {
          // TODO: buyTickets[next] = mTradeResult.order;
          Print("A new order has been successfully placed with Ticket#:", mTradeResult.order, ". ");
+         return true;
       } else {
-         // TODO: Post to journal
-         Print("Unexpected Order result code. Buy order may not have been created. mTradeResult.retcode is: ", mTradeResult.retcode, ".");
-         return;
+         Print("Unexpected Order result code. New order may not have been created. mTradeResult.retcode is: ", mTradeResult.retcode, ".");
       }
    } else {
-      // TODO: Post to journal
-      int errorCode = GetLastError();
-      Print(StringFormat("New order request could not be completed. Error: %d. Result comment: %s.", errorCode, mTradeResult.comment));
+      Print(StringFormat("New order request could not be completed. Error: %d. Result comment: %s.", GetLastError(), mTradeResult.comment));
       ResetLastError();
-      return;
    }
+   
+   return false;
 }
