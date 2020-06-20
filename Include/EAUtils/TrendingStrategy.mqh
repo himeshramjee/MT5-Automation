@@ -17,6 +17,8 @@ int maHandle;  // handle for our Moving Average indicator
 double plsDI[],minDI[],adxVal[]; // Dynamic arrays to hold the values of +DI, -DI and ADX values for each bars
 double maVal[]; // Dynamic array to hold the values of Moving Average for each bars
 
+bool doPlaceOrder = false;
+
 bool initTrendingIndicators() {
 
    //--- Get handle for ADX indicator
@@ -114,12 +116,15 @@ void runTrendingBuyStrategy() {
          // Do we have enough cash to place an order?
          validateFreeMargin(_Symbol, Lot, ORDER_TYPE_BUY);
          
+         setupGenericTradeRequest();
          mTradeRequest.price = NormalizeDouble(latestTickPrice.ask, _Digits);            // latest ask price
          if (SetStopLoss) {
             mTradeRequest.sl = latestTickPrice.ask - stopLoss * _Point ; // Stop Loss
          }
          mTradeRequest.tp = latestTickPrice.ask + takeProfit * _Point; // Take Profit
          mTradeRequest.type = ORDER_TYPE_BUY;                                         // Buy Order
+         
+         doPlaceOrder = true;
       }
    }
 }
@@ -143,12 +148,15 @@ void runTrendingSellStrategy() {
          // Do we have enough cash to place an order?
          validateFreeMargin(_Symbol, Lot, ORDER_TYPE_SELL);
          
+         setupGenericTradeRequest();
          mTradeRequest.price = NormalizeDouble(latestTickPrice.bid, _Digits);           // latest Bid price
          if (SetStopLoss) {
             mTradeRequest.sl = latestTickPrice.bid + stopLoss * _Point; // Stop Loss
          }
          mTradeRequest.tp = latestTickPrice.bid - takeProfit * _Point; // Take Profit
          mTradeRequest.type = ORDER_TYPE_SELL;                                         // Sell Order
+         
+         doPlaceOrder = true;
       }
    }
 }
@@ -160,15 +168,12 @@ void runTrendingStrategy() {
    }
  
    populateTrendingPrices();
-
-   // Now we can place either a Buy or Sell order
-   setupGenericTradeRequest();
    
    runTrendingBuyStrategy();
    
    runTrendingSellStrategy();
 
-   if (mTradeRequest.type == NULL) {
+   if (!doPlaceOrder) {
       // Print("Neither Buy nor Sell order conditions were met. No position will be opened.");
       return;
    }

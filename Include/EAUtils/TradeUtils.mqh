@@ -82,12 +82,12 @@ bool validateOrderVolume(double volume, string &description) {
 ENUM_ORDER_TYPE_FILLING getOrderFillMode() {
    //--- Obtain the value of the property that describes allowed filling modes
    int filling = (int) SymbolInfoInteger(_Symbol, SYMBOL_FILLING_MODE);
-   
-   if((filling & SYMBOL_FILLING_IOC) == SYMBOL_FILLING_IOC) {
-      return ORDER_FILLING_IOC;
+      
+   if(filling == SYMBOL_FILLING_FOK) {
+      return ORDER_FILLING_FOK;
    }
    
-   return ORDER_FILLING_FOK;
+   return ORDER_FILLING_IOC;
 }
 
 bool openPositionLimitReached() {
@@ -129,18 +129,14 @@ void closePositionsAboveLossLimit() {
 
 bool closePosition(ulong magic, ulong ticket, string symbol, ENUM_POSITION_TYPE positionType, double volume) {
    if(magic == EAMagic) {
-      //--- zeroing the request and result values
-      ZeroMemory(mTradeRequest);
-      ZeroMemory(mTradeResult);
+      setupGenericTradeRequest();
       
       //--- setting the operation parameters
-      mTradeRequest.action = TRADE_ACTION_DEAL;        // type of trade operation
       mTradeRequest.position = ticket;          // ticket of the position
       mTradeRequest.symbol = symbol;          // symbol 
       mTradeRequest.volume = volume;                   // volume of the position
       mTradeRequest.deviation = 5;                        // allowed deviation from the price
-      mTradeRequest.magic = EAMagic;             // MagicNumber of the position
-      
+            
       //--- set the price and order type depending on the position type
       if(positionType == POSITION_TYPE_BUY) {
          mTradeRequest.price = SymbolInfoDouble(symbol,SYMBOL_BID);
@@ -170,11 +166,13 @@ void setupGenericTradeRequest() {
    mTradeRequest.volume = Lot;                                                  // number of lots to trade
    mTradeRequest.magic = EAMagic;                                              // Order Magic Number
    mTradeRequest.type_filling = getOrderFillMode();
-   mTradeRequest.deviation = 100;                                                 // Deviation from current price
+   mTradeRequest.deviation = 5;                                                 // Deviation from current price
    mTradeRequest.type = NULL;
 }
 
 bool sendOrder() {
+   PrintFormat("Sending Order: Filling Mode: %s.", EnumToString(mTradeRequest.type_filling));
+   
    if (OrderSend(mTradeRequest, mTradeResult)) {
       // Basic validation passed so check returned result now
       // Request is completed or order placed 

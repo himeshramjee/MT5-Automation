@@ -100,6 +100,7 @@ void runRSISellStrategy() {
       // Do we have enough cash to place an order?
       validateFreeMargin(_Symbol, Lot, ORDER_TYPE_SELL);
       
+      setupGenericTradeRequest();
       mTradeRequest.type = ORDER_TYPE_SELL;                                         // Sell Order
       mTradeRequest.price = NormalizeDouble(latestTickPrice.bid, _Digits);           // latest Bid price
       if (SetStopLoss) {
@@ -121,7 +122,7 @@ void closeSellOrders() {
       if (positionType != POSITION_TYPE_SELL) {
          continue;
       }
-      
+
       ulong ticket = PositionGetTicket(i);
       string symbol = PositionGetSymbol(i);
       double profitLoss = PositionGetDouble(POSITION_PROFIT);
@@ -130,6 +131,7 @@ void closeSellOrders() {
       
       if(profitLoss > 0 && rsiVal[0] <= rsiSellTakeProfitLevel) {
          PrintFormat("Closing profit position - %s, Ticket: %d. Symbol: %s. Profit/Loss: %f. RSI: %f.", EnumToString(positionType), ticket, symbol, profitLoss, rsiVal[0]);
+         
          closePosition(magic, ticket, symbol, positionType, volume);
       }
    }
@@ -140,17 +142,13 @@ void runRSIStrategy() {
    
    populateRSIPrices();
 
-   // Now we can place either a Buy or Sell order
-   setupGenericTradeRequest();
-   
-   // runRSIBuyStrategy();
-   
    closeSellOrders();
       
    if (openPositionLimitReached()){
       return;
    }
-  
+   
+   // runRSIBuyStrategy();
    runRSISellStrategy();
 
    if (!doPlaceOrder) {
