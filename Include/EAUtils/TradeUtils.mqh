@@ -6,13 +6,15 @@
 #property copyright "Copyright 2020, MetaQuotes Software Corp."
 #property link      "https://www.mql5.com"
 
-input double lossLimitInCurrency = 50.00; // Limit loss value per trade
-input int OpenPositionsLimit = 5; // Open Positions Limit
-input double Lot = 2;       // Lots to Trade
+input group "Positioning";
+input double lossLimitInCurrency = 999.00; // Limit loss value per trade
+input int OpenPositionsLimit = 25; // Open Positions Limit
+input double Lot = 0.06;       // Lots to Trade
 
 // Order parameters
 MqlTradeRequest mTradeRequest;   // To be used for sending our trade requests
 MqlTradeResult mTradeResult;     // To be used to get our trade results
+bool doPlaceOrder = false;
 
 bool validateFreeMargin(string symb, double lots, ENUM_ORDER_TYPE type) {
    //--- Getting the opening price

@@ -6,6 +6,7 @@
 #property copyright "Copyright 2020, MetaQuotes Software Corp."
 #property link      "https://www.mql5.com"
 
+input group "Pricing";
 input bool SetStopLoss = false; // Automatically set Stop Loss
 input bool SetTakeProfit = false; // Automatically set Take Profit
 input int StopLoss = 0;   // Stop Loss (Pips)

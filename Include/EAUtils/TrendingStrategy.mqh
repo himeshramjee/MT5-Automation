@@ -7,6 +7,7 @@
 #property link      "https://www.mql5.com"
 
 //--- input parameters
+input group "S1: Strategy 1"
 input int ADXPeriod = 8;   // ADX Period
 input int MAPeriod = 8;    // Moving Average Period
 input double AdxMin = 22.0;   // Minimum ADX Value
@@ -16,8 +17,6 @@ int adxHandle; // handle for our ADX indicator
 int maHandle;  // handle for our Moving Average indicator
 double plsDI[],minDI[],adxVal[]; // Dynamic arrays to hold the values of +DI, -DI and ADX values for each bars
 double maVal[]; // Dynamic array to hold the values of Moving Average for each bars
-
-bool doPlaceOrder = false;
 
 bool initTrendingIndicators() {
 

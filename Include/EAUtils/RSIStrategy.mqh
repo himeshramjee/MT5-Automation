@@ -6,14 +6,16 @@
 #property copyright "Copyright 2020, MetaQuotes Software Corp."
 #property link      "https://www.mql5.com"
 
-input double rsiSellLevel = 85.0; // RSI level to trigger Sell order
+input group "S2: Strategy 2"
+input double rsiSellLevel = 78.0; // RSI level to trigger Sell order
 input double rsiSellTakeProfitLevel = 30.0; // RSI Level for Sell TP
-// input double rsiBuyLevel = 15.0; // RSI level to trigger Buy order
-// double rsiBuyLevel = 15.0; // RSI level to trigger Buy order
+input double rsiBuyLevel = 5.0; // RSI level to trigger Buy order
+input double rsiBuyTakeProfitLevel= 30.0; // RSI level for Buy TP
+input bool enableSellOrders = true; // Enable Boom positions (Short)
+input bool enableBuyOrders = true; // Enable Crash positions (Long)
 
 double rsiVal[];
 int rsiHandle;
-bool doPlaceOrder = false;
 
 bool initRSIIndicators() {
    //--- Get handle for RSI indicator
@@ -23,7 +25,6 @@ bool initRSIIndicators() {
    //--- What if handle returns Invalid Handle
    if(rsiHandle < 0) {
       Alert("Error Creating Handles for indicators - error: ", GetLastError(), "!!");
-      // return(INIT_FAILED);
       return false;
    }
    
@@ -61,7 +62,6 @@ void populateRSIPrices() {
       Trend?
       RSI < x%
 */
-/*
 void runRSIBuyStrategy() {
 
    // Declare bool type variables to hold our Buy Conditions
@@ -73,6 +73,7 @@ void runRSIBuyStrategy() {
       // Do we have enough cash to place an order?
       validateFreeMargin(_Symbol, Lot, ORDER_TYPE_BUY);
       
+      setupGenericTradeRequest();
       mTradeRequest.type = ORDER_TYPE_BUY;                                         // Buy Order  
       mTradeRequest.price = NormalizeDouble(latestTickPrice.ask, _Digits);            // latest ask price
       if (SetStopLoss) {
@@ -85,7 +86,6 @@ void runRSIBuyStrategy() {
       doPlaceOrder = true;
    }
 }
-*/
 
 /*
    Check for a Short/Sell Setup : 
@@ -114,14 +114,11 @@ void runRSISellStrategy() {
    }
 }
 
-void closeSellOrders() {
+void closeITMPositions() {
    int openPositionCount = PositionsTotal(); // number of open positions
    
    for (int i = 0; i < openPositionCount; i++) {
       ENUM_POSITION_TYPE positionType = (ENUM_POSITION_TYPE) PositionGetInteger(POSITION_TYPE);
-      if (positionType != POSITION_TYPE_SELL) {
-         continue;
-      }
 
       ulong ticket = PositionGetTicket(i);
       string symbol = PositionGetSymbol(i);
@@ -129,10 +126,19 @@ void closeSellOrders() {
       ulong  magic = PositionGetInteger(POSITION_MAGIC);
       double volume = PositionGetDouble(POSITION_VOLUME);
       
-      if(profitLoss > 0 && rsiVal[0] <= rsiSellTakeProfitLevel) {
-         PrintFormat("Closing profit position - %s, Ticket: %d. Symbol: %s. Profit/Loss: %f. RSI: %f.", EnumToString(positionType), ticket, symbol, profitLoss, rsiVal[0]);
-         
-         closePosition(magic, ticket, symbol, positionType, volume);
+      if (positionType == POSITION_TYPE_BUY) {
+         if(profitLoss > 0 && rsiVal[0] >= rsiBuyTakeProfitLevel) {
+            PrintFormat("Closing profit position - %s, Ticket: %d. Symbol: %s. Profit/Loss: %f. RSI: %f.", EnumToString(positionType), ticket, symbol, profitLoss, rsiVal[0]);
+            
+            closePosition(magic, ticket, symbol, positionType, volume);
+         }
+      }
+      if (positionType == POSITION_TYPE_SELL) {
+         if(profitLoss > 0 && rsiVal[0] <= rsiSellTakeProfitLevel) {
+            PrintFormat("Closing profit position - %s, Ticket: %d. Symbol: %s. Profit/Loss: %f. RSI: %f.", EnumToString(positionType), ticket, symbol, profitLoss, rsiVal[0]);
+            
+            closePosition(magic, ticket, symbol, positionType, volume);
+         }
       }
    }
 }
@@ -142,14 +148,19 @@ void runRSIStrategy() {
    
    populateRSIPrices();
 
-   closeSellOrders();
+   closeITMPositions();
       
    if (openPositionLimitReached()){
       return;
    }
    
-   // runRSIBuyStrategy();
-   runRSISellStrategy();
+   if (enableBuyOrders) {
+      runRSIBuyStrategy();
+   }
+   
+   if (enableSellOrders) {
+      runRSISellStrategy();
+   }
 
    if (!doPlaceOrder) {
       // Print("Neither Buy nor Sell order conditions were met. No position will be opened.");
