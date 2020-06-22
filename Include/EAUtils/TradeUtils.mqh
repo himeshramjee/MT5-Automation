@@ -8,49 +8,53 @@
 
 input group "Positioning";
 input double lossLimitInCurrency = 999.00; // Limit loss value per trade
-input int OpenPositionsLimit = 25; // Open Positions Limit
-input double Lot = 0.06;       // Lots to Trade
+input int OpenPositionsLimit = 5; // Open Positions Limit
+input double lot = 2;       // Lots to Trade
 
 // Order parameters
 MqlTradeRequest mTradeRequest;   // To be used for sending our trade requests
 MqlTradeResult mTradeResult;     // To be used to get our trade results
 bool doPlaceOrder = false;
 
-bool validateFreeMargin(string symb, double lots, ENUM_ORDER_TYPE type) {
+// Stats
+int lossLimitPositionsClosedCount = 0;
+double maxUsedMargin = 0.0;
+double maxFloatingLoss = 0.0;
+
+bool accountHasSufficientMargin(string symb, double lots, ENUM_ORDER_TYPE type) {
+
    //--- Getting the opening price
-   MqlTick mqltick;
-   SymbolInfoTick(symb,mqltick);
-   double price=mqltick.ask;
+   SymbolInfoTick(_Symbol, latestTickPrice);
+   double price = latestTickPrice.ask;
    
-   if(type==ORDER_TYPE_SELL)
-      price=mqltick.bid;
-   
+   if (type == ORDER_TYPE_SELL) {
+      price = latestTickPrice.bid;
+   }
+
    //--- values of the required and free margin
-   double margin,free_margin=AccountInfoDouble(ACCOUNT_MARGIN_FREE);
+   double requiredMargin, freeMargin = AccountInfoDouble(ACCOUNT_MARGIN_FREE);
+   accountMarginLevel = AccountInfoDouble(ACCOUNT_MARGIN_LEVEL);
    
    //--- call of the checking function   
-   if(!OrderCalcMargin(type,symb,lots,price,margin)) {
-      //--- something went wrong, report and return false
-      Print("Error in ",__FUNCTION__," code=",GetLastError());
+   if(!OrderCalcMargin(type, _Symbol, lots, price, requiredMargin)) {
+      Print("Error in ",__FUNCTION__," code=", GetLastError());
+
+      return(false);
+   }
       
-      // FIXME: Method call?
+   PrintFormat("Margin check: Free margin is %f %s. Required Margin is %f %s. Account Margin level is %f%%.", freeMargin, accountCurrency, requiredMargin, accountCurrency, accountMarginLevel);
+   
+   // User does not have enough margin to take the trade
+   if(requiredMargin > freeMargin) {
+      PrintFormat("Not enough money for %s %f lots of %s (Error code = %d). Required margin is %f %s. Free Margin is %f %s. Account Margin Level is %f%%.", EnumToString(type), lots, _Symbol, GetLastError(), requiredMargin, accountCurrency, freeMargin, accountCurrency, accountMarginLevel);      
       return(false);
    }
    
-   //--- if there are insufficient funds to perform the operation
-   if(margin>free_margin) {
-      //--- report the error and return false
-      PrintFormat("Not enough money for %s %d %s (Error code = %d). Margin is %f. Free Margin is %f.", EnumToString(type), lots, symb, GetLastError(), margin, free_margin);
-      
-      // FIXME: Method call?
-      return(false);
-   }
-   
-   // FIXME: Method call?
+   // User has sufficient margin to take the trade   
    return(true);
 }
 
-// TODO: Note this example uses the pointer reference for description.
+// TODO: Note this example uses the pointer reference for description. Doubt it's necessary.
 bool validateOrderVolume(double volume, string &description) {
    //--- minimal allowed volume for trade operations
    double min_volume = SymbolInfoDouble(Symbol(), SYMBOL_VOLUME_MIN);
@@ -98,14 +102,31 @@ bool openPositionLimitReached() {
       return true;
    }
    
+   double positionVolume = 0.0;
+   double positionPrice = 0.0;
+   double totalUsedMargin = 0.0;
+   
+   // Pull a margin stat before continuing
+   int openPositionCount = PositionsTotal(); // number of open positions
+   for (int i = 0; i < openPositionCount; i++) { 
+      string symbol = PositionGetSymbol(i);
+      positionVolume = PositionGetDouble(POSITION_VOLUME);
+      positionPrice = PositionGetDouble(POSITION_PRICE_CURRENT);
+      
+      totalUsedMargin += (positionPrice * positionVolume) / accountLeverage;  
+   }
+   
+   if (totalUsedMargin > maxUsedMargin) {
+      maxUsedMargin = totalUsedMargin;
+   }
+   
    return false;
 }
 
 void closePositionsAboveLossLimit() {
-   int activeLossPositionCount = 0;
-   int activeProfitPositionCount = 0;
-   int lossPositionsToCloseCount = 0;
    int openPositionCount = PositionsTotal(); // number of open positions
+   double totalFloatingLoss = 0.0;
+   double totalRealizedLosses = 0.0;
    
    for (int i = 0; i < openPositionCount; i++) { 
       ulong ticket = PositionGetTicket(i);
@@ -114,18 +135,28 @@ void closePositionsAboveLossLimit() {
       ulong  magic = PositionGetInteger(POSITION_MAGIC);
       double volume = PositionGetDouble(POSITION_VOLUME);
       ENUM_POSITION_TYPE positionType = (ENUM_POSITION_TYPE) PositionGetInteger(POSITION_TYPE);    
-      
-      if(profitLoss >= 1) {
-         activeProfitPositionCount++;
-      } else {
-         activeLossPositionCount++;
-      }
-      
+
       if(profitLoss <= (lossLimitInCurrency * -1)) {
-         lossPositionsToCloseCount++;
+         // Loss is over user set limit so close the position
          PrintFormat("Closing loss position - %s, Ticket: %d. Symbol: %s. Profit/Loss: %f <= %f", EnumToString(positionType), ticket, symbol, profitLoss, lossLimitInCurrency * -1);
          closePosition(magic, ticket, symbol, positionType, volume);
+         lossLimitPositionsClosedCount++;
+         totalRealizedLosses += profitLoss;
+      } else if (profitLoss < 0) {
+         // Still floating this loss
+         totalFloatingLoss += profitLoss;
+         // PrintFormat("Floating loss on position (ticket %d) is %f %s. Running floating loss for open positions is %f %s", ticket, profitLoss, accountCurrency, totalFloatingLoss, accountCurrency);
       }
+   }
+   
+   if (totalFloatingLoss < maxFloatingLoss) {
+      // Store the highest floating loss
+      maxFloatingLoss = totalFloatingLoss;
+      // Print("New floating loss high: ", maxFloatingLoss);
+   }
+   
+   if (lossLimitPositionsClosedCount > 0) {
+      PrintFormat("Closed %d %s positions that were above loss limit value of %f. There are currently %d open positions. Floating loss is %f %s.", lossLimitPositionsClosedCount, _Symbol, PositionsTotal(), totalFloatingLoss, accountCurrency);
    }
 }
 
@@ -165,7 +196,7 @@ void setupGenericTradeRequest() {
    
    mTradeRequest.action = TRADE_ACTION_DEAL;                                    // immediate order execution
    mTradeRequest.symbol = _Symbol;                                              // currency pair
-   mTradeRequest.volume = Lot;                                                  // number of lots to trade
+   mTradeRequest.volume = lot;                                                  // number of lots to trade
    mTradeRequest.magic = EAMagic;                                              // Order Magic Number
    mTradeRequest.type_filling = getOrderFillMode();
    mTradeRequest.deviation = 5;                                                 // Deviation from current price

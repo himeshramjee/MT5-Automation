@@ -12,7 +12,7 @@ input double rsiSellTakeProfitLevel = 30.0; // RSI Level for Sell TP
 input double rsiBuyLevel = 5.0; // RSI level to trigger Buy order
 input double rsiBuyTakeProfitLevel= 30.0; // RSI level for Buy TP
 input bool enableSellOrders = true; // Enable Boom positions (Short)
-input bool enableBuyOrders = true; // Enable Crash positions (Long)
+input bool enableBuyOrders = false; // Enable Crash positions (Long)
 
 double rsiVal[];
 int rsiHandle;
@@ -69,10 +69,7 @@ void runRSIBuyStrategy() {
    
    // PrintFormat("Checking Buy condition - rsIVal = %f. rsiBuyLevel = %f", rsiVal[0], rsiBuyLevel);
    
-   if(Buy_Condition_1) {
-      // Do we have enough cash to place an order?
-      validateFreeMargin(_Symbol, Lot, ORDER_TYPE_BUY);
-      
+   if(Buy_Condition_1) {      
       setupGenericTradeRequest();
       mTradeRequest.type = ORDER_TYPE_BUY;                                         // Buy Order  
       mTradeRequest.price = NormalizeDouble(latestTickPrice.ask, _Digits);            // latest ask price
@@ -96,10 +93,7 @@ void runRSISellStrategy() {
    // Declare bool type variables to hold our Sell Conditions
    bool Sell_Condition_1 = rsiVal[0] >= rsiSellLevel;    // RSI > y%
    
-   if(Sell_Condition_1) {
-      // Do we have enough cash to place an order?
-      validateFreeMargin(_Symbol, Lot, ORDER_TYPE_SELL);
-      
+   if(Sell_Condition_1) {      
       setupGenericTradeRequest();
       mTradeRequest.type = ORDER_TYPE_SELL;                                         // Sell Order
       mTradeRequest.price = NormalizeDouble(latestTickPrice.bid, _Digits);           // latest Bid price
@@ -175,7 +169,7 @@ void runRSIStrategy() {
    }
 
    // Do we have enough cash to place an order?
-   if (!validateFreeMargin(_Symbol, Lot, mTradeRequest.type)) {
+   if (!accountHasSufficientMargin(_Symbol, lot, mTradeRequest.type)) {
       Print("Insufficient funds in account. Disable this EA until you sort that out.");
       return;
    }

@@ -111,10 +111,7 @@ void runTrendingBuyStrategy() {
    // Print(StringFormat("Buy conditions: 1 = %s, 2 = %s, 3 = %s, 4 = %s", Buy_Condition_1 ? "True" : "False", Buy_Condition_2 ? "True" : "False", Buy_Condition_3 ? "True" : "False", Buy_Condition_4 ? "True" : "False"));
 
    if(Buy_Condition_1 && Buy_Condition_2) {
-      if(Buy_Condition_3 && Buy_Condition_4) {
-         // Do we have enough cash to place an order?
-         validateFreeMargin(_Symbol, Lot, ORDER_TYPE_BUY);
-         
+      if(Buy_Condition_3 && Buy_Condition_4) {         
          setupGenericTradeRequest();
          mTradeRequest.price = NormalizeDouble(latestTickPrice.ask, _Digits);            // latest ask price
          if (SetStopLoss) {
@@ -143,10 +140,7 @@ void runTrendingSellStrategy() {
    bool Sell_Condition_4 = (plsDI[0] < minDI[0]);                             // -DI greater than +DI
    
    if(Sell_Condition_1 && Sell_Condition_2) {
-      if(Sell_Condition_3 && Sell_Condition_4) {
-         // Do we have enough cash to place an order?
-         validateFreeMargin(_Symbol, Lot, ORDER_TYPE_SELL);
-         
+      if(Sell_Condition_3 && Sell_Condition_4) {         
          setupGenericTradeRequest();
          mTradeRequest.price = NormalizeDouble(latestTickPrice.bid, _Digits);           // latest Bid price
          if (SetStopLoss) {
@@ -161,6 +155,7 @@ void runTrendingSellStrategy() {
 }
 
 void runTrendingStrategy() {
+   doPlaceOrder = false;
 
    if (openPositionLimitReached()){
       return;
@@ -185,7 +180,7 @@ void runTrendingStrategy() {
    }
 
    // Do we have enough cash to place an order?
-   if (!validateFreeMargin(_Symbol, Lot, mTradeRequest.type)) {
+   if (!accountHasSufficientMargin(_Symbol, lot, mTradeRequest.type)) {
       Print("Insufficient funds in account. Disable this EA until you sort that out.");
       return;
    }

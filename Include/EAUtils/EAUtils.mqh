@@ -49,6 +49,7 @@ bool checkBarCount() {
    return true;
 }
 
+// TODO: Compare with https://www.mql5.com/en/articles/22
 bool isNewBar() {
    // We will use the static previousTickTime variable to serve the bar time.
    // At each OnTick execution we will check the current bar time with the saved one.
@@ -98,7 +99,7 @@ void printSymbolInfo() {
 
    double minLot  = SymbolInfoDouble(_Symbol, SYMBOL_VOLUME_MIN);
    double lotStep = SymbolInfoDouble(_Symbol, SYMBOL_VOLUME_STEP);
-   double lotSize = MathFloor(Lot/lotStep) * lotStep;
+   double lotSize = MathFloor(lot/lotStep) * lotStep;
    PrintFormat("MinLots: %f.2, LotStep: %f, LotSize: %f.", minLot, lotStep, lotSize);
    
    double tickSize = SymbolInfoDouble(_Symbol, SYMBOL_TRADE_TICK_SIZE);
