@@ -154,10 +154,6 @@ void closePositionsAboveLossLimit() {
       maxFloatingLoss = totalFloatingLoss;
       // Print("New floating loss high: ", maxFloatingLoss);
    }
-   
-   if (lossLimitPositionsClosedCount > 0) {
-      PrintFormat("Closed %d %s positions that were above loss limit value of %f. There are currently %d open positions. Floating loss is %f %s.", lossLimitPositionsClosedCount, _Symbol, PositionsTotal(), totalFloatingLoss, accountCurrency);
-   }
 }
 
 bool closePosition(ulong magic, ulong ticket, string symbol, ENUM_POSITION_TYPE positionType, double volume) {
