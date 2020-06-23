@@ -10,6 +10,8 @@
 //| https://www.mql5.com/en/forum/137301#comment_3474196
 //| https://www.mql5.com/en/docs/constants/tradingconstants/enum_trade_request_actions
 //| https://www.mql5.com/en/forum/192909#comment_5070465
+//| https://www.mql5.com/en/docs/objects/objectcreate
+//| https://www.mql5.com/en/docs/event_handlers/ontick
 //+------------------------------------------------------------------+
 
 // TODOs:
@@ -20,26 +22,29 @@
 // 4. Rewrite Stop Loss and Take Profit calculations. Ball ache of note due to different broker and asset types.
 // 5. Done - Let user activate 1 or more strategies. Update: Decided on single strategy at a time.
 // 6. Not a single try/catch?!
-// 7. Add input validations to methods, regardless of how dirty the code is. 
+// 7. Add input validations to user inputs and methods. 
 // 8. Optimizations. e.g. Test use of uchar and other.
+// 9. Prototype done, research class design and make this a real thing
 
 #property copyright "Copyright 2020, MetaQuotes Software Corp."
 #property link      "https://www.mql5.com"
 #property version   "1.00"
 
 #include <EAUtils/EAUtils.mqh>
-#include <EAUtils/TrendingStrategy.mqh>
-#include <EAUtils/RSIStrategy.mqh>
+// #include <EAUtils/TrendingStrategy.mqh>
+#include <EAUtils/RSIOBOSStrategy.mqh>
+#include <EAUtils/RSISpikeStrategy.mqh>
 #include <EAUtils/PriceUtils.mqh>
 #include <EAUtils/TradeUtils.mqh>
 
 input ENUM_TIMEFRAMES chartTimeframe = PERIOD_M1; // Chart Timeframe
 
 enum ENUM_HELLOEA_STRATEGIES {
-   EMA_ADX_Trending = 0,      // S1: Simple Trending using EMA and ADX
-   RSI_Sells = 1              // S2: Simple RSI, No Trend, Short only
+   // EMA_ADX_TRENDING = 0,   // S1: Simple Trending using EMA and ADX
+   RSI_OBOS = 1,              // S2: RSI, OBOS, Shorts only
+   RSI_SPIKES = 2             // S3: RSI, Spikes, Shorts only
 };
-input ENUM_HELLOEA_STRATEGIES selectedEAStrategy = RSI_Sells; // Selected Strategy
+input ENUM_HELLOEA_STRATEGIES selectedEAStrategy = RSI_OBOS; // Selected Strategy
 
 string accountName = AccountInfoString(ACCOUNT_NAME);
 string accountCurrency = AccountInfoString(ACCOUNT_CURRENCY);
@@ -62,6 +67,9 @@ string marginInfoMessage = StringFormat("Brokers Margin call settings for accoun
 //| Expert initialization function                                   |
 //+------------------------------------------------------------------+
 int OnInit() {
+
+   // showEAInfo();
+      
    PrintFormat("Welcome to Hello EA!");
    
    Print(accountInfoMessage);
@@ -81,18 +89,31 @@ int OnInit() {
    //--- create timer
    EventSetTimer(60);
    
-   if (selectedEAStrategy == ENUM_HELLOEA_STRATEGIES::EMA_ADX_Trending) {
+   /*
+   if (selectedEAStrategy == ENUM_HELLOEA_STRATEGIES::EMA_ADX_TRENDING) {
       if(!initTrendingIndicators()) {
          return(INIT_FAILED);
       }
-   } else if (selectedEAStrategy == ENUM_HELLOEA_STRATEGIES::RSI_Sells) {
-      if(!initRSIIndicators()) {
+   } else */ 
+   if (selectedEAStrategy == ENUM_HELLOEA_STRATEGIES::RSI_OBOS) {
+      if(!initRSIOBOSIndicators()) {
          return(INIT_FAILED);
       }
+   } else if (selectedEAStrategy == ENUM_HELLOEA_STRATEGIES::RSI_SPIKES) {
+      if(!initRSISpikeIndicators()) {
+         return(INIT_FAILED);
+      }
+   } else {
+      Print("No valid trading strategy is defined. HelloEA cannot start.");
+      return(INIT_FAILED);
    }
    
    //--- Adjust for 5 or 3 digit price currency pairs (as oppposed to the typical 4 digit)
    adjustDigitsForBroker();
+   
+   if (!checkBarCount()) {
+      return(INIT_FAILED);
+   }
    
    Print("Hello EA has successfully initialized. Running...");
    return(INIT_SUCCEEDED);
@@ -107,10 +128,13 @@ void OnDeinit(const int reason) {
    //--- destroy timer
    EventKillTimer();
    
+   /*
    if (selectedEAStrategy == ENUM_HELLOEA_STRATEGIES::EMA_ADX_Trending) {
       releaseTrendingIndicators();
-   } else if (selectedEAStrategy == ENUM_HELLOEA_STRATEGIES::RSI_Sells) {
-      releaseRSIIndicators();
+   } else*/ if (selectedEAStrategy == ENUM_HELLOEA_STRATEGIES::RSI_OBOS) {
+      releaseRSIOBOSIndicators();
+   } else if (selectedEAStrategy == ENUM_HELLOEA_STRATEGIES::RSI_SPIKES) {
+      releaseRSISpikeIndicators();
    }
    
    // Print stats
@@ -133,9 +157,14 @@ void OnTick() {
    
    closePositionsAboveLossLimit();
    
+   calculateMaxUsedMargin();  
+   
+   /*
    if (selectedEAStrategy == ENUM_HELLOEA_STRATEGIES::EMA_ADX_Trending) {
       runTrendingStrategy();
-   } else if (selectedEAStrategy == ENUM_HELLOEA_STRATEGIES::RSI_Sells) {
-      runRSIStrategy();
+   } else*/ if (selectedEAStrategy == ENUM_HELLOEA_STRATEGIES::RSI_OBOS) {
+      runRSIOBOSStrategy();
+   } else if (selectedEAStrategy == ENUM_HELLOEA_STRATEGIES::RSI_SPIKES) {
+      runRSISpikesStrategy();
    }
 }

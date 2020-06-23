@@ -8,7 +8,7 @@
 
 input group "Positioning";
 input double lossLimitInCurrency = 999.00; // Limit loss value per trade
-input int OpenPositionsLimit = 5; // Open Positions Limit
+input int openPositionsLimit = 5; // Open Positions Limit
 input double lot = 2;       // Lots to Trade
 
 // Order parameters
@@ -42,7 +42,7 @@ bool accountHasSufficientMargin(string symb, double lots, ENUM_ORDER_TYPE type) 
       return(false);
    }
       
-   PrintFormat("Margin check: Free margin is %f %s. Required Margin is %f %s. Account Margin level is %f%%.", freeMargin, accountCurrency, requiredMargin, accountCurrency, accountMarginLevel);
+   // PrintFormat("Margin check: Free margin is %f %s. Required Margin is %f %s. Account Margin level is %f%%.", freeMargin, accountCurrency, requiredMargin, accountCurrency, accountMarginLevel);
    
    // User does not have enough margin to take the trade
    if(requiredMargin > freeMargin) {
@@ -96,12 +96,7 @@ ENUM_ORDER_TYPE_FILLING getOrderFillMode() {
    return ORDER_FILLING_IOC;
 }
 
-bool openPositionLimitReached() {
-   if (PositionsTotal() >= OpenPositionsLimit) {
-      // Print("Open Positions Limit reached. EA will only continue once open position count is less than or equal to ", OpenPositionsLimit, ". Open Positions count is ", PositionsTotal()); 
-      return true;
-   }
-   
+void calculateMaxUsedMargin() {
    double positionVolume = 0.0;
    double positionPrice = 0.0;
    double totalUsedMargin = 0.0;
@@ -109,7 +104,6 @@ bool openPositionLimitReached() {
    // Pull a margin stat before continuing
    int openPositionCount = PositionsTotal(); // number of open positions
    for (int i = 0; i < openPositionCount; i++) { 
-      string symbol = PositionGetSymbol(i);
       positionVolume = PositionGetDouble(POSITION_VOLUME);
       positionPrice = PositionGetDouble(POSITION_PRICE_CURRENT);
       
@@ -118,6 +112,13 @@ bool openPositionLimitReached() {
    
    if (totalUsedMargin > maxUsedMargin) {
       maxUsedMargin = totalUsedMargin;
+   }
+}
+
+bool openPositionLimitReached() {
+   if (PositionsTotal() >= openPositionsLimit) {
+      // Print("Open Positions Limit reached. EA will only continue once open position count is less than or equal to ", openPositionsLimit, ". Open Positions count is ", PositionsTotal()); 
+      return true;
    }
    
    return false;
@@ -179,7 +180,7 @@ bool closePosition(ulong magic, ulong ticket, string symbol, ENUM_POSITION_TYPE 
          return false;
       }
       
-      PrintFormat("Closed Position - retcode=%u  deal=%I64u  order=%I64u  ticket=%I64d.", mTradeResult.retcode, mTradeResult.deal, mTradeResult.order, ticket);
+      // PrintFormat("Closed Position - retcode=%u  deal=%I64u  order=%I64u  ticket=%I64d.", mTradeResult.retcode, mTradeResult.deal, mTradeResult.order, ticket);
    }
    
    return true;
@@ -200,20 +201,17 @@ void setupGenericTradeRequest() {
 }
 
 bool sendOrder() {
-   PrintFormat("Sending Order: Filling Mode: %s.", EnumToString(mTradeRequest.type_filling));
-   
    if (OrderSend(mTradeRequest, mTradeResult)) {
       // Basic validation passed so check returned result now
       // Request is completed or order placed 
       if(mTradeResult.retcode == 10009 || mTradeResult.retcode == 10008) {
-         // TODO: buyTickets[next] = mTradeResult.order;
-         Print("A new order has been successfully placed with Ticket#:", mTradeResult.order, ". ");
+         // Print("A new order has been successfully placed with Ticket#:", mTradeResult.order, ". ");
          return true;
       } else {
          Print("Unexpected Order result code. New order may not have been created. mTradeResult.retcode is: ", mTradeResult.retcode, ".");
       }
    } else {
-      Print(StringFormat("New order request could not be completed. Error: %d. Result comment: %s.", GetLastError(), mTradeResult.comment));
+      PrintFormat("New order request could not be completed. Error: %d. Result comment: %s.", GetLastError(), mTradeResult.comment);
       ResetLastError();
    }
    
