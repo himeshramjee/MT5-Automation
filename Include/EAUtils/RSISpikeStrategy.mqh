@@ -77,15 +77,14 @@ void runRSISpikeSellStrategy() {
    // Has the RSI indicator change meet the first condition?
    if (!sellCondition1SignalOn && (rsiSpikeCurrentValue - rsiSpikePreviousValue) > rsiSellDeltaCondition) {
       sellCondition1SignalOn = true;
-      Print("sellCondition1SignalOn is now ", sellCondition1SignalOn);
       sellCondition1TimeAtSignal = TimeCurrent();
       
       // Add a visual cue
       bool signalVisualCueAdded = ObjectCreate(0, string(sellCondition1TimeAtSignal), OBJ_ARROW_THUMB_UP, 0, TimeCurrent(), latestTickPrice.bid);
       if (signalVisualCueAdded) {
-         ObjectSetInteger(0, string(sellCondition1TimeAtSignal), OBJPROP_ANCHOR, ANCHOR_TOP);
-         ObjectSetInteger(0, string(sellCondition1TimeAtSignal), OBJPROP_COLOR, clrRed);
-         Print("Added visual cue for object at Time = ", string(sellCondition1TimeAtSignal), " and bid price = ", latestTickPrice.bid);
+         ObjectSetInteger(0, (string)sellCondition1TimeAtSignal, OBJPROP_ANCHOR, ANCHOR_TOP);
+         ObjectSetInteger(0, (string)sellCondition1TimeAtSignal, OBJPROP_COLOR, clrRed);
+         Print("Added visual cue for object at Time = ", (string)sellCondition1TimeAtSignal, " and bid price = ", latestTickPrice.bid);
       } else {
          Print("Failed to add visual cue for object at Time = ", sellCondition1TimeAtSignal, " and bid price = ", latestTickPrice.bid, ". (Error = ", GetLastError(), ").");
       }
@@ -135,7 +134,7 @@ void closeSpikeSellPositions() {
                datetime currentTime = TimeCurrent();
                int minutesPassed = (int) ((currentTime - openTime) / 60);
                
-               if (minutesPassed >= rsiSellTakeProfitMinutes) {
+               if (profitLoss > 0 && minutesPassed >= rsiSellTakeProfitMinutes) {
                   PrintFormat("Closing Sell position - %s, Ticket: %d. Symbol: %s. Profit/Loss: %f. RSI: %f.", EnumToString(positionType), ticket, symbol, profitLoss, rsiSpikeCurrentValue);
                   closePosition(magic, ticket, symbol, positionType, volume);
                }

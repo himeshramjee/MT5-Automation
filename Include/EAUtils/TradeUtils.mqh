@@ -205,13 +205,13 @@ bool sendOrder() {
       // Basic validation passed so check returned result now
       // Request is completed or order placed 
       if(mTradeResult.retcode == 10009 || mTradeResult.retcode == 10008) {
-         // Print("A new order has been successfully placed with Ticket#:", mTradeResult.order, ". ");
+         Print("A new order has been successfully placed with Ticket#:", mTradeResult.order, ". ");
          return true;
       } else {
          Print("Unexpected Order result code. New order may not have been created. mTradeResult.retcode is: ", mTradeResult.retcode, ".");
       }
    } else {
-      PrintFormat("New order request could not be completed. Error: %d. Result comment: %s.", GetLastError(), mTradeResult.comment);
+      PrintFormat("New order request could not be completed. Ticket#: %d. Error: %d. Result comment: %s. Return code: %s.", mTradeRequest.order, GetLastError(), mTradeResult.comment, mTradeResult.retcode);
       ResetLastError();
    }
    
