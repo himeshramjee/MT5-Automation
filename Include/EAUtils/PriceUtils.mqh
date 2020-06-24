@@ -7,30 +7,10 @@
 #property link      "https://www.mql5.com"
 
 input group "Pricing";
-input bool SetStopLoss = false; // Automatically set Stop Loss
-input bool SetTakeProfit = false; // Automatically set Take Profit
-input int StopLoss = 0;   // Stop Loss (Pips)
-input int TakeProfit = 0;// Take Profit (Pips)
+bool setStopLoss = false; // Automatically set Stop Loss
+bool setTakeProfit = false; // Automatically set Take Profit
 
-int stopLoss, takeProfit;   // To be used for Stop Loss & Take Profit values
-MqlTick latestTickPrice;         // To be used for getting recent/latest price quotes
-MqlRates mBarPriceInfo[];      // To be used to store the prices, volumes and spread of each bar
-
-double priceClose; // Variable to store the close value of a bar
-
-// Adjust for 5 or 3 digit price currency pairs (as oppposed to the typical 4 digit)
-void adjustDigitsForBroker() {
-   stopLoss = StopLoss;
-   takeProfit = TakeProfit;
-   
-   // _Digits, Digits() returns the number of decimal digits used to quote the current chart symbol
-   if(_Digits == 5 || _Digits == 3){
-      stopLoss = stopLoss * 10;
-      takeProfit = takeProfit * 10;
-   }
-}
-
-bool CheckStopLossAndTakeprofit(ENUM_ORDER_TYPE type, double bidOrAskPrice, double SL, double TP) {
+bool validateStopLossAndTakeprofit(ENUM_ORDER_TYPE type, double bidOrAskPrice, double SL, double TP) {
    //--- get the SYMBOL_TRADE_STOPS_LEVEL level
    int stops_level = (int)SymbolInfoInteger(_Symbol, SYMBOL_TRADE_STOPS_LEVEL);
    /*
@@ -46,7 +26,7 @@ bool CheckStopLossAndTakeprofit(ENUM_ORDER_TYPE type, double bidOrAskPrice, doub
    switch(type) {
       //--- Buy operation
       case  ORDER_TYPE_BUY: {
-         if (SetStopLoss) {
+         if (setStopLoss) {
             //--- check the StopLoss
             SL_check = (bidOrAskPrice - SL > stops_level * _Point);
             if(!SL_check) {
@@ -58,7 +38,7 @@ bool CheckStopLossAndTakeprofit(ENUM_ORDER_TYPE type, double bidOrAskPrice, doub
             SL_check = true;
          }
          
-         if (SetTakeProfit) {
+         if (setTakeProfit) {
             //--- check the TakeProfit
             TP_check=(TP - bidOrAskPrice > stops_level * _Point);
             if(!TP_check) {
@@ -75,7 +55,7 @@ bool CheckStopLossAndTakeprofit(ENUM_ORDER_TYPE type, double bidOrAskPrice, doub
       }
       //--- Sell operation
       case  ORDER_TYPE_SELL:  {
-         if (SetStopLoss) {
+         if (setStopLoss) {
             //--- check the StopLoss
             SL_check=(SL - bidOrAskPrice > stops_level * _Point);
             if(!SL_check) {
@@ -87,7 +67,7 @@ bool CheckStopLossAndTakeprofit(ENUM_ORDER_TYPE type, double bidOrAskPrice, doub
             SL_check = true;
          }
          
-         if (SetTakeProfit) {
+         if (setTakeProfit) {
             //--- check the TakeProfit
             TP_check=(bidOrAskPrice - TP > stops_level * _Point);
             if(!TP_check) {

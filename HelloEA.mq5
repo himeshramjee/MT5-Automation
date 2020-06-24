@@ -30,21 +30,21 @@
 #property link      "https://www.mql5.com"
 #property version   "1.00"
 
-#include <EAUtils/EAUtils.mqh>
-// #include <EAUtils/TrendingStrategy.mqh>
-#include <EAUtils/RSIOBOSStrategy.mqh>
-#include <EAUtils/RSISpikeStrategy.mqh>
-#include <EAUtils/PriceUtils.mqh>
-#include <EAUtils/TradeUtils.mqh>
-
-input ENUM_TIMEFRAMES chartTimeframe = PERIOD_M1; // Chart Timeframe
-
 enum ENUM_HELLOEA_STRATEGIES {
-   // EMA_ADX_TRENDING = 0,   // S1: Simple Trending using EMA and ADX
+   EMA_ADX_MA_TRENDS = 0,     // S1: Simple Trending using EMA and ADX
    RSI_OBOS = 1,              // S2: RSI, OBOS, Shorts only
    RSI_SPIKES = 2             // S3: RSI, Spikes, Shorts only
 };
+
+input group "Hello EA Options";
 input ENUM_HELLOEA_STRATEGIES selectedEAStrategy = RSI_OBOS; // Selected Strategy
+
+#include <EAUtils/EAUtils.mqh>
+#include <EAUtils/TradeUtils.mqh>
+// #include <EAUtils/PriceUtils.mqh>
+#include <EAUtils/TrendingStrategy.mqh>
+#include <EAUtils/RSIOBOSStrategy.mqh>
+#include <EAUtils/RSISpikeStrategy.mqh>
 
 string accountName = AccountInfoString(ACCOUNT_NAME);
 string accountCurrency = AccountInfoString(ACCOUNT_CURRENCY);
@@ -67,9 +67,7 @@ string marginInfoMessage = StringFormat("Brokers Margin call settings for accoun
 //| Expert initialization function                                   |
 //+------------------------------------------------------------------+
 int OnInit() {
-
-   // showEAInfo();
-      
+     
    PrintFormat("Welcome to Hello EA!");
    
    Print(accountInfoMessage);
@@ -89,13 +87,11 @@ int OnInit() {
    //--- create timer
    EventSetTimer(60);
    
-   /*
-   if (selectedEAStrategy == ENUM_HELLOEA_STRATEGIES::EMA_ADX_TRENDING) {
+   if (selectedEAStrategy == ENUM_HELLOEA_STRATEGIES::EMA_ADX_MA_TRENDS) {
       if(!initTrendingIndicators()) {
          return(INIT_FAILED);
       }
-   } else */ 
-   if (selectedEAStrategy == ENUM_HELLOEA_STRATEGIES::RSI_OBOS) {
+   } else if (selectedEAStrategy == ENUM_HELLOEA_STRATEGIES::RSI_OBOS) {
       if(!initRSIOBOSIndicators()) {
          return(INIT_FAILED);
       }
@@ -107,9 +103,6 @@ int OnInit() {
       Print("No valid trading strategy is defined. HelloEA cannot start.");
       return(INIT_FAILED);
    }
-   
-   //--- Adjust for 5 or 3 digit price currency pairs (as oppposed to the typical 4 digit)
-   adjustDigitsForBroker();
    
    if (!checkBarCount()) {
       return(INIT_FAILED);
@@ -128,10 +121,9 @@ void OnDeinit(const int reason) {
    //--- destroy timer
    EventKillTimer();
    
-   /*
-   if (selectedEAStrategy == ENUM_HELLOEA_STRATEGIES::EMA_ADX_Trending) {
+   if (selectedEAStrategy == ENUM_HELLOEA_STRATEGIES::EMA_ADX_MA_TRENDS) {
       releaseTrendingIndicators();
-   } else*/ if (selectedEAStrategy == ENUM_HELLOEA_STRATEGIES::RSI_OBOS) {
+   } else if (selectedEAStrategy == ENUM_HELLOEA_STRATEGIES::RSI_OBOS) {
       releaseRSIOBOSIndicators();
    } else if (selectedEAStrategy == ENUM_HELLOEA_STRATEGIES::RSI_SPIKES) {
       releaseRSISpikeIndicators();
@@ -139,11 +131,12 @@ void OnDeinit(const int reason) {
    
    // Print stats
    Print("Printing stats for this run before exiting...");
-   PrintFormat("Max used margin was %f %s. Max floating loss was %f %s.", maxUsedMargin, accountCurrency, maxFloatingLoss, accountCurrency);
+   PrintFormat("Max used margin was %f %s. Max floating loss was %f %s. Orders missed due to insufficient margin was %d.", maxUsedMargin, accountCurrency, maxFloatingLoss, accountCurrency, insufficientMarginCount);
    PrintFormat("Closed %d positions that were above loss limit value of %f %s. There are currently %d open positions.", lossLimitPositionsClosedCount, lossLimitInCurrency, accountCurrency, PositionsTotal());
    Print("Reprinting start up stats...");
    Print(accountInfoMessage);
    Print(marginInfoMessage);
+   Print("Hello EA is stopped.");
 }
 
 //+------------------------------------------------------------------+
@@ -155,16 +148,21 @@ void OnTick() {
       return;
    }
    
+   if (!setTickPricing()) {
+      return;
+   }
+   
    closePositionsAboveLossLimit();
    
    calculateMaxUsedMargin();  
    
-   /*
-   if (selectedEAStrategy == ENUM_HELLOEA_STRATEGIES::EMA_ADX_Trending) {
+   if (selectedEAStrategy == ENUM_HELLOEA_STRATEGIES::EMA_ADX_MA_TRENDS) {
       runTrendingStrategy();
-   } else*/ if (selectedEAStrategy == ENUM_HELLOEA_STRATEGIES::RSI_OBOS) {
+   } else if (selectedEAStrategy == ENUM_HELLOEA_STRATEGIES::RSI_OBOS) {
       runRSIOBOSStrategy();
    } else if (selectedEAStrategy == ENUM_HELLOEA_STRATEGIES::RSI_SPIKES) {
       runRSISpikesStrategy();
+   } else {
+      Print("Hello EA found no valid selected strategy.");
    }
 }

@@ -6,29 +6,23 @@
 #property copyright "Copyright 2020, MetaQuotes Software Corp."
 #property link      "https://www.mql5.com"
 
-input group "S3: Strategy 3"
-input double   rsiSellDeltaCondition = 40.0;   // RSI delta value to trigger a Sell position
-input int      rsiSellPositionOpenMinutes = 4; // Number of minutes to wait before opening a Sell position
-input int      rsiSellTakeProfitMinutes = 4;   // Number of minutes to wait before closing position
-input int      rsiSpikeWorkingPeriod = 8;      // Number of bars to look back at
+input group "S3: Strategy 3 - RSI Spike Delta"
+input int      s3RSIWorkingPeriod = 8;      // Number of bars for RSI to look back at
+input double   s3RSILevelDeltaForSell = 40.0;   // RSI delta value to trigger a Sell position
+input bool     s3DelaySellPositionOpening = true; // Delay the opening of Sell positions
+input int      s3RSISellPositionOpenMinutes = 0; // Number of minutes to wait before opening a Sell position
+input int      s3RSISellTakeProfitMinutes = 4;   // Number of minutes to wait before closing a Sell position
 
-double   rsiSpikeValues[];
-int      rsiSpikeHandle;
-double   rsiSpikePreviousValue = 0.0;
-double   rsiSpikeCurrentValue = 0.0;
-double   rsiSpikePreviousPrice = 0.0;
-double   rsiSpikeCurrentPrice = 0.0;
-
-double   closePrices[];
-bool     sellCondition1SignalOn = false;
-datetime sellCondition1TimeAtSignal;
-int      barsSinceSignalOn = 0;
+double   s3RSIValues[];
+int      s3RSIHandle;
+double   s3RSIPreviousValue = 0.0;
+double   s3RSICurrentValue = 0.0;
 
 bool initRSISpikeIndicators() {
-   rsiSpikeHandle = iRSI(NULL, 0, rsiSpikeWorkingPeriod, PRICE_CLOSE);
+   s3RSIHandle = iRSI(NULL, 0, s3RSIWorkingPeriod, PRICE_CLOSE);
    
    //--- What if handle returns Invalid Handle
-   if(rsiSpikeHandle < 0) {
+   if(s3RSIHandle < 0) {
       Alert("Error Creating Handles for indicators - error: ", GetLastError(), "!!");
       return false;
    }
@@ -38,35 +32,28 @@ bool initRSISpikeIndicators() {
      are store serially similar to the timeseries array
    */
    ArraySetAsSeries(rsiVal, true);
-   ArraySetAsSeries(closePrices, true);
 
    return true;
 }
 
 void releaseRSISpikeIndicators() {
    // Release indicator handles
-   IndicatorRelease(rsiSpikeHandle);
+   IndicatorRelease(s3RSIHandle);
 }
 
 
 void populateRSIOBOSData() {
-   // Get the last price quote using the MQL5 MqlTick Structure
-   if(!SymbolInfoTick(_Symbol, latestTickPrice)) {
-      Alert("Error getting the latest price quote - error:", GetLastError(), ". ");
-      return;
-   }
-   
    // Copy old RSI indicator value
-   rsiSpikePreviousValue = rsiSpikeCurrentValue;
+   s3RSIPreviousValue = s3RSICurrentValue;
   
    // Get the current value of the indicator
-   if(CopyBuffer(rsiSpikeHandle, 0, 0, PRICE_CLOSE, rsiSpikeValues) < 0) {
+   if(CopyBuffer(s3RSIHandle, 0, 0, PRICE_CLOSE, s3RSIValues) < 0) {
       Alert("Error copying RSI Spike indicator Buffers - error: ", GetLastError(), ". ");
       return;
    }
    
    // Set new RSI indicator value
-   rsiSpikeCurrentValue = rsiSpikeValues[0];
+   s3RSICurrentValue = s3RSIValues[0];
 }
 
 /*
@@ -74,44 +61,40 @@ void populateRSIOBOSData() {
       RSI delta is > x%
 */
 void runRSISpikeSellStrategy() {
+   static bool s3SellCondition1SignalOn;
+   static datetime s3SellCondition1TimeAtSignal;
+   
    // Has the RSI indicator change meet the first condition?
-   if (!sellCondition1SignalOn && (rsiSpikeCurrentValue - rsiSpikePreviousValue) > rsiSellDeltaCondition) {
-      sellCondition1SignalOn = true;
-      sellCondition1TimeAtSignal = TimeCurrent();
+   if (!s3SellCondition1SignalOn && (s3RSICurrentValue - s3RSIPreviousValue) > s3RSILevelDeltaForSell) {
+      s3SellCondition1SignalOn = true;
+      s3SellCondition1TimeAtSignal = TimeCurrent();
       
       // Add a visual cue
-      bool signalVisualCueAdded = ObjectCreate(0, string(sellCondition1TimeAtSignal), OBJ_ARROW_THUMB_UP, 0, TimeCurrent(), latestTickPrice.bid);
-      if (signalVisualCueAdded) {
-         ObjectSetInteger(0, (string)sellCondition1TimeAtSignal, OBJPROP_ANCHOR, ANCHOR_TOP);
-         ObjectSetInteger(0, (string)sellCondition1TimeAtSignal, OBJPROP_COLOR, clrRed);
-         Print("Added visual cue for object at Time = ", (string)sellCondition1TimeAtSignal, " and bid price = ", latestTickPrice.bid);
-      } else {
-         Print("Failed to add visual cue for object at Time = ", sellCondition1TimeAtSignal, " and bid price = ", latestTickPrice.bid, ". (Error = ", GetLastError(), ").");
-      }
+      ObjectCreate(0, (string)s3SellCondition1TimeAtSignal, OBJ_ARROW_CHECK, 0, TimeCurrent(), latestTickPrice.bid);
+      ObjectSetInteger(0, (string)s3SellCondition1TimeAtSignal, OBJPROP_ANCHOR, ANCHOR_TOP);
+      ObjectSetInteger(0, (string)s3SellCondition1TimeAtSignal, OBJPROP_COLOR, clrBlue);
       
       // Signal triggered, now wait x mins before opening the Sell position      
       return; 
    }
    
-   if (sellCondition1SignalOn) {
+   if (s3SellCondition1SignalOn) {
       // Check if a new Sell position should be opened now
-      int minutesPassed = (int) ((TimeCurrent() - sellCondition1TimeAtSignal) / 60);
-      if (minutesPassed >= rsiSellPositionOpenMinutes) {
-         // Open new Sell position
-         setupGenericTradeRequest();
-         mTradeRequest.type = ORDER_TYPE_SELL;                                         // Sell Order
-         mTradeRequest.price = NormalizeDouble(latestTickPrice.bid, _Digits);           // latest Bid price
-         if (SetStopLoss) {
-            mTradeRequest.sl = mTradeRequest.price + stopLoss * _Point; // Stop Loss
-         }
-         if (SetTakeProfit) {
-            mTradeRequest.tp = mTradeRequest.price - takeProfit * _Point; // Take Profit
-         }
-         
-         doPlaceOrder = true;
-         
-         sellCondition1SignalOn = false;  
+      int minutesPassed = (int) ((TimeCurrent() - s3SellCondition1TimeAtSignal) / 60);
+      if (s3DelaySellPositionOpening && minutesPassed < s3RSISellPositionOpenMinutes) {
+         // Wait bit longer
+         return;
       }
+      
+      // Open new Sell position
+      setupGenericTradeRequest();
+      mTradeRequest.type = ORDER_TYPE_SELL;                                         // Sell Order
+      mTradeRequest.price = NormalizeDouble(latestTickPrice.bid, _Digits);           // latest Bid price
+      mTradeRequest.comment = mTradeRequest.comment + "S3 Sell conditions.";
+      doPlaceOrder = true;
+      
+      // Reset signal as all conditions have triggered   
+      s3SellCondition1SignalOn = false;  
    }
 }
 
@@ -134,9 +117,9 @@ void closeSpikeSellPositions() {
                datetime currentTime = TimeCurrent();
                int minutesPassed = (int) ((currentTime - openTime) / 60);
                
-               if (profitLoss > 0 && minutesPassed >= rsiSellTakeProfitMinutes) {
-                  PrintFormat("Closing Sell position - %s, Ticket: %d. Symbol: %s. Profit/Loss: %f. RSI: %f.", EnumToString(positionType), ticket, symbol, profitLoss, rsiSpikeCurrentValue);
-                  closePosition(magic, ticket, symbol, positionType, volume);
+               if (profitLoss > 0 && minutesPassed >= s3RSISellTakeProfitMinutes) {
+                  PrintFormat("Closing Sell position - %s, Ticket: %d. Symbol: %s. Profit/Loss: %f. RSI: %f.", EnumToString(positionType), ticket, symbol, profitLoss, s3RSICurrentValue);
+                  closePosition(magic, ticket, symbol, positionType, volume, "S3 profit conditions.");
                }
             }
          }
@@ -159,14 +142,7 @@ void runRSISpikesStrategy() {
          // Print("Neither Buy nor Sell order conditions were met. No position will be opened.");
          return;
       }
-      
-      // Validate SL and TP
-      // TODO: Clean up method names
-      if (!CheckStopLossAndTakeprofit(mTradeRequest.type, latestTickPrice.bid, mTradeRequest.sl, mTradeRequest.tp)
-         || !CheckStopLossAndTakeprofit(mTradeRequest.type, latestTickPrice.ask, mTradeRequest.sl, mTradeRequest.tp)) {
-         return;
-      }
-   
+         
       // Do we have enough cash to place an order?
       if (!accountHasSufficientMargin(_Symbol, lot, mTradeRequest.type)) {
          Print("Insufficient funds in account. Disable this EA until you sort that out.");

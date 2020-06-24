@@ -6,14 +6,13 @@
 #property copyright "Copyright 2020, MetaQuotes Software Corp."
 #property link      "https://www.mql5.com"
 
-input group "S2: Strategy 2"
-input double   rsiSellLevel = 78.0;            // RSI level to trigger Sell order
-input double   rsiSellTakeProfitLevel = 30.0;  // RSI Level for Sell TP
-input double   rsiBuyLevel = 5.0;              // RSI level to trigger Buy order
-input double   rsiBuyTakeProfitLevel= 30.0;    // RSI level for Buy TP
-input bool     enableSellOrders = true;        // Enable Boom positions (Short)
-input bool     enableBuyOrders = false;        // Enable Crash positions (Long)
-input int      rsiOBOSWorkingPeriod = 8;           // Number of bars to look back at
+input group "S2: Strategy 2 - RSI OB/OS"
+input int      S2RSIWorkingPeriod = 8;             // RSI Number of bars for to look back at
+input bool     s2BoomMode = true;                  // Trade Boom if true, trade crash if false
+input double   s2RSISignalLevel = 78.0;            // RSI level to trigger new order signal
+input double   s2RSITakeProfitLevel = 30.0;        // RSI level for Take Profit
+input int      s2RSIPositionOpenDelayMinutes = 0;  // Number of minutes to wait before opening a new position
+input bool     s2ConfirmSpotPrice = false;         // Open new position after confirming spot price
 
 double rsiVal[];
 int rsiHandle;
@@ -21,11 +20,11 @@ int rsiHandle;
 bool initRSIOBOSIndicators() {
    //--- Get handle for RSI indicator
    // NULL and 0 are the Symbol and Timeframe values respectively and values returned are from the currently active chart
-   rsiHandle = iRSI(NULL, 0, rsiOBOSWorkingPeriod, PRICE_CLOSE);
+   rsiHandle = iRSI(NULL, 0, S2RSIWorkingPeriod, PRICE_CLOSE);
    
    //--- What if handle returns Invalid Handle
    if(rsiHandle < 0) {
-      Alert("Error Creating Handles for indicators - error: ", GetLastError(), "!!");
+      Alert("Error Creating Handles for indicators - error: ", GetLastError());
       return false;
    }
    
@@ -45,43 +44,10 @@ void releaseRSIOBOSIndicators() {
 
 
 void populateRSIOBOSPrices() {
-   // Get the last price quote using the MQL5 MqlTick Structure
-   if(!SymbolInfoTick(_Symbol, latestTickPrice)) {
-      Alert("Error getting the latest price quote - error:", GetLastError(), ". ");
-      return;
-   }
-     
    //--- Copy the new values of our indicators to buffers (arrays) using the handle
    if(CopyBuffer(rsiHandle, 0, 0, PRICE_CLOSE, rsiVal) < 0) {
       Alert("Error copying RSI OBOS indicator Buffers - error:", GetLastError(), ". ");
       return;
-   }
-}
-
-/*
-   Check for a Long/Buy Setup : 
-      Trend?
-      RSI < x%
-*/
-void runRSIOBOSBuyStrategy() {
-
-   // Declare bool type variables to hold our Buy Conditions
-   bool Buy_Condition_1 = rsiVal[0] < rsiBuyLevel; // RSI < x%
-   
-   // PrintFormat("Checking Buy condition - rsIVal = %f. rsiBuyLevel = %f", rsiVal[0], rsiBuyLevel);
-   
-   if(Buy_Condition_1) {      
-      setupGenericTradeRequest();
-      mTradeRequest.type = ORDER_TYPE_BUY;                                         // Buy Order  
-      mTradeRequest.price = NormalizeDouble(latestTickPrice.ask, _Digits);            // latest ask price
-      if (SetStopLoss) {
-         mTradeRequest.sl = mTradeRequest.price - stopLoss * _Point ; // Stop Loss
-      }
-      if (SetTakeProfit) {
-         mTradeRequest.tp = mTradeRequest.price + takeProfit * _Point; // Take Profit
-      }
-      
-      doPlaceOrder = true;
    }
 }
 
@@ -91,21 +57,94 @@ void runRSIOBOSBuyStrategy() {
       RSI > y%
 */
 void runRSIOBOSSellStrategy() {
-   // Declare bool type variables to hold our Sell Conditions
-   bool Sell_Condition_1 = rsiVal[0] >= rsiSellLevel;    // RSI > y%
+   static bool s2SellCondition1SignalOn;
+   static datetime s2SellCondition1TimeAtSignal;
+   static double s2SellConditionPriceAtSignal;
    
-   if(Sell_Condition_1) {      
+   if (!s2SellCondition1SignalOn && rsiVal[0] >= s2RSISignalLevel) {
+      s2SellCondition1SignalOn = true;
+      s2SellCondition1TimeAtSignal = TimeCurrent();
+      s2SellConditionPriceAtSignal = latestTickPrice.bid;
+      
+      // Add a visual cue
+      ObjectCreate(0, (string)s2SellCondition1TimeAtSignal, OBJ_ARROW_CHECK, 0, TimeCurrent(), latestTickPrice.bid);
+      ObjectSetInteger(0, (string)s2SellCondition1TimeAtSignal, OBJPROP_ANCHOR, ANCHOR_TOP);
+      ObjectSetInteger(0, (string)s2SellCondition1TimeAtSignal, OBJPROP_COLOR, clrBlue);
+      
+      // Signal triggered, now wait x mins before opening the Sell position      
+      return; 
+   }
+   
+   if(s2SellCondition1SignalOn) {
+      int minutesPassed = (int) ((TimeCurrent() - s2SellCondition1TimeAtSignal) / 60);
+      if (minutesPassed < s2RSIPositionOpenDelayMinutes) {
+         // wait bit longer
+         return;
+      }
+      
+      if (s2ConfirmSpotPrice && (s2SellConditionPriceAtSignal < latestTickPrice.bid)) {
+         // Reset signal as all conditions have triggered, no order can be placed
+         s2SellCondition1SignalOn = false;
+         return;
+      }
+      
       setupGenericTradeRequest();
       mTradeRequest.type = ORDER_TYPE_SELL;                                         // Sell Order
       mTradeRequest.price = NormalizeDouble(latestTickPrice.bid, _Digits);           // latest Bid price
-      if (SetStopLoss) {
-         mTradeRequest.sl = mTradeRequest.price + stopLoss * _Point; // Stop Loss
-      }
-      if (SetTakeProfit) {
-         mTradeRequest.tp = mTradeRequest.price - takeProfit * _Point; // Take Profit
+      mTradeRequest.comment = mTradeRequest.comment + "S2 Sell conditions.";
+      doPlaceOrder = true;
+      
+      // Reset signal as all conditions have triggered and order can be placed
+      s2SellCondition1SignalOn = false;
+   }
+}
+
+
+/*
+   Check for a Long/Buy Setup : 
+      Trend?
+      RSI < y%
+*/
+void runRSIOBOSBuyStrategy() {
+   static bool s2BuyCondition1SignalOn;
+   static datetime s2BuyCondition1TimeAtSignal;
+   static double s2BuyConditionPriceAtSignal;
+   
+   if (!s2BuyCondition1SignalOn && rsiVal[0] <= s2RSISignalLevel) {
+      s2BuyCondition1SignalOn = true;
+      s2BuyCondition1TimeAtSignal = TimeCurrent();
+      s2BuyConditionPriceAtSignal = latestTickPrice.bid;
+      
+      // Add a visual cue
+      ObjectCreate(0, (string)s2BuyCondition1TimeAtSignal, OBJ_ARROW_CHECK, 0, TimeCurrent(), latestTickPrice.bid);
+      ObjectSetInteger(0, (string)s2BuyCondition1TimeAtSignal, OBJPROP_ANCHOR, ANCHOR_TOP);
+      ObjectSetInteger(0, (string)s2BuyCondition1TimeAtSignal, OBJPROP_COLOR, clrBlue);
+      
+      // Signal triggered, now wait x mins before opening the Buy position
+      return; 
+   }
+   
+   if(s2BuyCondition1SignalOn) {
+      int minutesPassed = (int) ((TimeCurrent() - s2BuyCondition1TimeAtSignal) / 60);
+      if (minutesPassed < s2RSIPositionOpenDelayMinutes) {
+         // wait bit longer
+         return;
       }
       
+      if (s2ConfirmSpotPrice && (s2BuyConditionPriceAtSignal < latestTickPrice.bid)) {
+         // Reset signal as all conditions have triggered, no order can be placed
+         s2BuyCondition1SignalOn = false;
+         return;
+      }
+      
+      setupGenericTradeRequest();
+      mTradeRequest.type = ORDER_TYPE_BUY;
+      mTradeRequest.price = NormalizeDouble(latestTickPrice.bid, _Digits);
+      mTradeRequest.comment = mTradeRequest.comment + "S2 Buy conditions.";
       doPlaceOrder = true;
+      
+      // Reset signal as all conditions have triggered and order can be placed
+      s2BuyCondition1SignalOn = false;
    }
 }
 
@@ -123,18 +162,18 @@ void closeITMPositions() {
       
       // Only act on positions opened by this EA
       if (magic == EAMagic) {
-         if (positionType == POSITION_TYPE_BUY) {
-            if(profitLoss > 0 && rsiVal[0] >= rsiBuyTakeProfitLevel) {
-               PrintFormat("Closing profit position - %s, Ticket: %d. Symbol: %s. Profit/Loss: %f. RSI: %f.", EnumToString(positionType), ticket, symbol, profitLoss, rsiVal[0]);
+         if (positionType == POSITION_TYPE_SELL) {
+            if(profitLoss > 0 && rsiVal[0] <= s2RSITakeProfitLevel) {
+               PrintFormat("Closing profit Sell position - %s, Ticket: %d. Symbol: %s. Profit/Loss: %f. RSI: %f.", EnumToString(positionType), ticket, symbol, profitLoss, rsiVal[0]);
                
-               closePosition(magic, ticket, symbol, positionType, volume);
+               closePosition(magic, ticket, symbol, positionType, volume, "S2 profit conditions.");
             }
          }
-         if (positionType == POSITION_TYPE_SELL) {
-            if(profitLoss > 0 && rsiVal[0] <= rsiSellTakeProfitLevel) {
-               PrintFormat("Closing profit position - %s, Ticket: %d. Symbol: %s. Profit/Loss: %f. RSI: %f.", EnumToString(positionType), ticket, symbol, profitLoss, rsiVal[0]);
+         if (positionType == POSITION_TYPE_BUY) {
+            if(profitLoss > 0 && rsiVal[0] >= s2RSITakeProfitLevel) {
+               PrintFormat("Closing profit Buy position - %s, Ticket: %d. Symbol: %s. Profit/Loss: %f. RSI: %f.", EnumToString(positionType), ticket, symbol, profitLoss, rsiVal[0]);
                
-               closePosition(magic, ticket, symbol, positionType, volume);
+               closePosition(magic, ticket, symbol, positionType, volume, "S2 profit conditions.");
             }
          }
       }
@@ -151,13 +190,11 @@ void runRSIOBOSStrategy() {
    if (openPositionLimitReached()){
       return;
    }
-   
-   if (enableBuyOrders) {
-      runRSIOBOSBuyStrategy();
-   }
-   
-   if (enableSellOrders) {
+
+   if (s2BoomMode) {
       runRSIOBOSSellStrategy();
+   } else {
+      runRSIOBOSBuyStrategy();
    }
 
    if (!doPlaceOrder) {
@@ -165,13 +202,6 @@ void runRSIOBOSStrategy() {
       return;
    }
    
-   // Validate SL and TP
-   // TODO: Clean up method names
-   if (!CheckStopLossAndTakeprofit(mTradeRequest.type, latestTickPrice.bid, mTradeRequest.sl, mTradeRequest.tp)
-      || !CheckStopLossAndTakeprofit(mTradeRequest.type, latestTickPrice.ask, mTradeRequest.sl, mTradeRequest.tp)) {
-      return;
-   }
-
    // Do we have enough cash to place an order?
    if (!accountHasSufficientMargin(_Symbol, lot, mTradeRequest.type)) {
       Print("Insufficient funds in account. Disable this EA until you sort that out.");

@@ -6,7 +6,7 @@
 #property copyright "Copyright 2020, MetaQuotes Software Corp."
 #property link      "https://www.mql5.com"
 
-input group "Positioning";
+input group "Positioning (All strategies)";
 input double lossLimitInCurrency = 999.00; // Limit loss value per trade
 input int openPositionsLimit = 5; // Open Positions Limit
 input double lot = 2;       // Lots to Trade
@@ -14,17 +14,27 @@ input double lot = 2;       // Lots to Trade
 // Order parameters
 MqlTradeRequest mTradeRequest;   // To be used for sending our trade requests
 MqlTradeResult mTradeResult;     // To be used to get our trade results
+MqlTick latestTickPrice;         // To be used for getting recent/latest price quotes
+
 bool doPlaceOrder = false;
 
 // Stats
 int lossLimitPositionsClosedCount = 0;
 double maxUsedMargin = 0.0;
 double maxFloatingLoss = 0.0;
+int insufficientMarginCount = 0;
+
+bool setTickPricing() {
+   // Get the last price quote using the MQL5 MqlTick Structure
+   if(!SymbolInfoTick(_Symbol, latestTickPrice)) {
+      Alert("Error getting the latest price quote - error:", GetLastError(), ". ");
+      return false;
+   }
+      
+   return true;
+}
 
 bool accountHasSufficientMargin(string symb, double lots, ENUM_ORDER_TYPE type) {
-
-   //--- Getting the opening price
-   SymbolInfoTick(_Symbol, latestTickPrice);
    double price = latestTickPrice.ask;
    
    if (type == ORDER_TYPE_SELL) {
@@ -46,6 +56,7 @@ bool accountHasSufficientMargin(string symb, double lots, ENUM_ORDER_TYPE type) 
    
    // User does not have enough margin to take the trade
    if(requiredMargin > freeMargin) {
+      insufficientMarginCount++;
       PrintFormat("Not enough money for %s %f lots of %s (Error code = %d). Required margin is %f %s. Free Margin is %f %s. Account Margin Level is %f%%.", EnumToString(type), lots, _Symbol, GetLastError(), requiredMargin, accountCurrency, freeMargin, accountCurrency, accountMarginLevel);      
       return(false);
    }
@@ -128,6 +139,7 @@ void closePositionsAboveLossLimit() {
    int openPositionCount = PositionsTotal(); // number of open positions
    double totalFloatingLoss = 0.0;
    double totalRealizedLosses = 0.0;
+   string commentToAppend;
    
    for (int i = 0; i < openPositionCount; i++) { 
       ulong ticket = PositionGetTicket(i);
@@ -135,12 +147,14 @@ void closePositionsAboveLossLimit() {
       double profitLoss = PositionGetDouble(POSITION_PROFIT);
       ulong  magic = PositionGetInteger(POSITION_MAGIC);
       double volume = PositionGetDouble(POSITION_VOLUME);
-      ENUM_POSITION_TYPE positionType = (ENUM_POSITION_TYPE) PositionGetInteger(POSITION_TYPE);    
+      ENUM_POSITION_TYPE positionType = (ENUM_POSITION_TYPE) PositionGetInteger(POSITION_TYPE);
+      commentToAppend = "Limiting loss position.";
 
       if(profitLoss <= (lossLimitInCurrency * -1)) {
          // Loss is over user set limit so close the position
          PrintFormat("Closing loss position - %s, Ticket: %d. Symbol: %s. Profit/Loss: %f <= %f", EnumToString(positionType), ticket, symbol, profitLoss, lossLimitInCurrency * -1);
-         closePosition(magic, ticket, symbol, positionType, volume);
+         
+         closePosition(magic, ticket, symbol, positionType, volume, commentToAppend);
          lossLimitPositionsClosedCount++;
          totalRealizedLosses += profitLoss;
       } else if (profitLoss < 0) {
@@ -157,7 +171,7 @@ void closePositionsAboveLossLimit() {
    }
 }
 
-bool closePosition(ulong magic, ulong ticket, string symbol, ENUM_POSITION_TYPE positionType, double volume) {
+bool closePosition(ulong magic, ulong ticket, string symbol, ENUM_POSITION_TYPE positionType, double volume, string commentToAppend) {
    if(magic == EAMagic) {
       setupGenericTradeRequest();
       
@@ -165,7 +179,8 @@ bool closePosition(ulong magic, ulong ticket, string symbol, ENUM_POSITION_TYPE 
       mTradeRequest.position = ticket;          // ticket of the position
       mTradeRequest.symbol = symbol;          // symbol 
       mTradeRequest.volume = volume;                   // volume of the position
-      mTradeRequest.deviation = 5;                        // allowed deviation from the price
+      mTradeRequest.deviation = 5;                        // allowed deviation from the price"
+      mTradeRequest.comment = mTradeRequest.comment + commentToAppend;
             
       //--- set the price and order type depending on the position type
       if(positionType == POSITION_TYPE_BUY) {
@@ -180,6 +195,11 @@ bool closePosition(ulong magic, ulong ticket, string symbol, ENUM_POSITION_TYPE 
          return false;
       }
       
+      string visualCueName = StringFormat("Close position for ticket ", ticket);
+      // Add a visual cue
+      ObjectCreate(0, visualCueName, OBJ_ARROW_THUMB_UP, 0, TimeCurrent(), mTradeRequest.price);
+      ObjectSetInteger(0, visualCueName, OBJPROP_ANCHOR, ANCHOR_BOTTOM);
+      ObjectSetInteger(0, visualCueName, OBJPROP_COLOR, clrBlue);
       // PrintFormat("Closed Position - retcode=%u  deal=%I64u  order=%I64u  ticket=%I64d.", mTradeResult.retcode, mTradeResult.deal, mTradeResult.order, ticket);
    }
    
@@ -198,6 +218,7 @@ void setupGenericTradeRequest() {
    mTradeRequest.type_filling = getOrderFillMode();
    mTradeRequest.deviation = 5;                                                 // Deviation from current price
    mTradeRequest.type = NULL;
+   // mTradeRequest.comment = "HelloEA:";
 }
 
 bool sendOrder() {
