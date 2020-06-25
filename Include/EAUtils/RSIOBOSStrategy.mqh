@@ -67,9 +67,9 @@ void runRSIOBOSSellStrategy() {
       s2SellConditionPriceAtSignal = latestTickPrice.bid;
       
       // Add a visual cue
-      ObjectCreate(0, (string)s2SellCondition1TimeAtSignal, OBJ_ARROW_CHECK, 0, TimeCurrent(), latestTickPrice.bid);
-      ObjectSetInteger(0, (string)s2SellCondition1TimeAtSignal, OBJPROP_ANCHOR, ANCHOR_TOP);
-      ObjectSetInteger(0, (string)s2SellCondition1TimeAtSignal, OBJPROP_COLOR, clrBlue);
+      ObjectCreate(0, (string)s2SellCondition1TimeAtSignal, OBJ_ARROW_SELL, 0, TimeCurrent(), latestTickPrice.bid);
+      ObjectSetInteger(0, (string)s2SellCondition1TimeAtSignal, OBJPROP_ANCHOR, ANCHOR_BOTTOM);
+      ObjectSetInteger(0, (string)s2SellCondition1TimeAtSignal, OBJPROP_COLOR, clrRed);
       
       // Signal triggered, now wait x mins before opening the Sell position      
       return; 
@@ -87,7 +87,7 @@ void runRSIOBOSSellStrategy() {
          s2SellCondition1SignalOn = false;
          return;
       }
-      
+            
       setupGenericTradeRequest();
       mTradeRequest.type = ORDER_TYPE_SELL;                                         // Sell Order
       mTradeRequest.price = NormalizeDouble(latestTickPrice.bid, _Digits);           // latest Bid price
@@ -116,7 +116,7 @@ void runRSIOBOSBuyStrategy() {
       s2BuyConditionPriceAtSignal = latestTickPrice.bid;
       
       // Add a visual cue
-      ObjectCreate(0, (string)s2BuyCondition1TimeAtSignal, OBJ_ARROW_CHECK, 0, TimeCurrent(), latestTickPrice.bid);
+      ObjectCreate(0, (string)s2BuyCondition1TimeAtSignal, OBJ_ARROW_BUY, 0, TimeCurrent(), latestTickPrice.bid);
       ObjectSetInteger(0, (string)s2BuyCondition1TimeAtSignal, OBJPROP_ANCHOR, ANCHOR_TOP);
       ObjectSetInteger(0, (string)s2BuyCondition1TimeAtSignal, OBJPROP_COLOR, clrBlue);
       

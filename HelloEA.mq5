@@ -116,7 +116,7 @@ int OnInit() {
 //| Expert deinitialization function                                 |
 //+------------------------------------------------------------------+
 void OnDeinit(const int reason) {
-   Print("Hello EA is shutting donwn...");
+   Print("Hello EA is shutting down...");
    
    //--- destroy timer
    EventKillTimer();

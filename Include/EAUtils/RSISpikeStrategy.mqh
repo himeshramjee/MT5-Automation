@@ -70,9 +70,9 @@ void runRSISpikeSellStrategy() {
       s3SellCondition1TimeAtSignal = TimeCurrent();
       
       // Add a visual cue
-      ObjectCreate(0, (string)s3SellCondition1TimeAtSignal, OBJ_ARROW_CHECK, 0, TimeCurrent(), latestTickPrice.bid);
-      ObjectSetInteger(0, (string)s3SellCondition1TimeAtSignal, OBJPROP_ANCHOR, ANCHOR_TOP);
-      ObjectSetInteger(0, (string)s3SellCondition1TimeAtSignal, OBJPROP_COLOR, clrBlue);
+      ObjectCreate(0, (string)s3SellCondition1TimeAtSignal, OBJ_ARROW_SELL, 0, TimeCurrent(), latestTickPrice.bid);
+      ObjectSetInteger(0, (string)s3SellCondition1TimeAtSignal, OBJPROP_ANCHOR, ANCHOR_BOTTOM);
+      ObjectSetInteger(0, (string)s3SellCondition1TimeAtSignal, OBJPROP_COLOR, clrRed);
       
       // Signal triggered, now wait x mins before opening the Sell position      
       return; 

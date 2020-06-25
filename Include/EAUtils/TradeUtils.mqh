@@ -7,9 +7,9 @@
 #property link      "https://www.mql5.com"
 
 input group "Positioning (All strategies)";
-input double lossLimitInCurrency = 999.00; // Limit loss value per trade
-input int openPositionsLimit = 5; // Open Positions Limit
-input double lot = 2;       // Lots to Trade
+input double lossLimitInCurrency = 50; // Limit loss value per trade
+input int openPositionsLimit = 2; // Open Positions Limit
+input double lot = 0.2;       // Lots to Trade
 
 // Order parameters
 MqlTradeRequest mTradeRequest;   // To be used for sending our trade requests
@@ -127,7 +127,16 @@ void calculateMaxUsedMargin() {
 }
 
 bool openPositionLimitReached() {
-   if (PositionsTotal() >= openPositionsLimit) {
+   int openPositionsByEACount = 0;
+   
+   for (int i = 0; i < PositionsTotal(); i++) { 
+      ulong  magic = PositionGetInteger(POSITION_MAGIC);
+      if (magic == EAMagic) {
+         openPositionsByEACount++;
+      }
+   }
+   
+   if (openPositionsByEACount >= openPositionsLimit) {
       // Print("Open Positions Limit reached. EA will only continue once open position count is less than or equal to ", openPositionsLimit, ". Open Positions count is ", PositionsTotal()); 
       return true;
    }
@@ -136,16 +145,21 @@ bool openPositionLimitReached() {
 }
 
 void closePositionsAboveLossLimit() {
-   int openPositionCount = PositionsTotal(); // number of open positions
+   int openPositionCount = PositionsTotal();
    double totalFloatingLoss = 0.0;
    double totalRealizedLosses = 0.0;
    string commentToAppend;
    
-   for (int i = 0; i < openPositionCount; i++) { 
+   for (int i = 0; i < openPositionCount; i++) {
+      // Only act on EA owned positions
+      ulong  magic = PositionGetInteger(POSITION_MAGIC);
+      if (magic != EAMagic) {
+         continue;
+      }
+   
       ulong ticket = PositionGetTicket(i);
       string symbol = PositionGetSymbol(i);
       double profitLoss = PositionGetDouble(POSITION_PROFIT);
-      ulong  magic = PositionGetInteger(POSITION_MAGIC);
       double volume = PositionGetDouble(POSITION_VOLUME);
       ENUM_POSITION_TYPE positionType = (ENUM_POSITION_TYPE) PositionGetInteger(POSITION_TYPE);
       commentToAppend = "Limiting loss position.";
@@ -172,36 +186,39 @@ void closePositionsAboveLossLimit() {
 }
 
 bool closePosition(ulong magic, ulong ticket, string symbol, ENUM_POSITION_TYPE positionType, double volume, string commentToAppend) {
-   if(magic == EAMagic) {
-      setupGenericTradeRequest();
-      
-      //--- setting the operation parameters
-      mTradeRequest.position = ticket;          // ticket of the position
-      mTradeRequest.symbol = symbol;          // symbol 
-      mTradeRequest.volume = volume;                   // volume of the position
-      mTradeRequest.deviation = 5;                        // allowed deviation from the price"
-      mTradeRequest.comment = mTradeRequest.comment + commentToAppend;
-            
-      //--- set the price and order type depending on the position type
-      if(positionType == POSITION_TYPE_BUY) {
-         mTradeRequest.price = SymbolInfoDouble(symbol,SYMBOL_BID);
-         mTradeRequest.type = ORDER_TYPE_SELL;
-      } else {
-         mTradeRequest.price = SymbolInfoDouble(symbol,SYMBOL_ASK);
-         mTradeRequest.type = ORDER_TYPE_BUY;
-      }
-      
-      if(!sendOrder()) {
-         return false;
-      }
-      
-      string visualCueName = StringFormat("Close position for ticket ", ticket);
-      // Add a visual cue
-      ObjectCreate(0, visualCueName, OBJ_ARROW_THUMB_UP, 0, TimeCurrent(), mTradeRequest.price);
-      ObjectSetInteger(0, visualCueName, OBJPROP_ANCHOR, ANCHOR_BOTTOM);
-      ObjectSetInteger(0, visualCueName, OBJPROP_COLOR, clrBlue);
-      // PrintFormat("Closed Position - retcode=%u  deal=%I64u  order=%I64u  ticket=%I64d.", mTradeResult.retcode, mTradeResult.deal, mTradeResult.order, ticket);
+   if (magic != EAMagic) {
+      PrintFormat("EA Magic number mismatch. Close %s position (ticket#: %d) request rejected. Expected %d but got %d.", EnumToString(positionType), ticket, mTradeRequest.magic, EAMagic);
+      return false;
    }
+   
+   setupGenericTradeRequest();
+   
+   //--- setting the operation parameters
+   mTradeRequest.position = ticket;          // ticket of the position
+   mTradeRequest.symbol = symbol;          // symbol 
+   mTradeRequest.volume = volume;                   // volume of the position
+   mTradeRequest.deviation = 5;                        // allowed deviation from the price"
+   mTradeRequest.comment = mTradeRequest.comment + commentToAppend;
+         
+   //--- set the price and order type depending on the position type
+   if(positionType == POSITION_TYPE_BUY) {
+      mTradeRequest.price = SymbolInfoDouble(symbol,SYMBOL_BID);
+      mTradeRequest.type = ORDER_TYPE_SELL;
+   } else {
+      mTradeRequest.price = SymbolInfoDouble(symbol,SYMBOL_ASK);
+      mTradeRequest.type = ORDER_TYPE_BUY;
+   }
+   
+   if(!sendOrder()) {
+      return false;
+   }
+   
+   string visualCueName = StringFormat("Close position for ticket %d", ticket);
+   // Add a visual cue
+   ObjectCreate(0, visualCueName, OBJ_ARROW_THUMB_UP, 0, TimeCurrent(), mTradeRequest.price);
+   ObjectSetInteger(0, visualCueName, OBJPROP_ANCHOR, ANCHOR_RIGHT_LOWER);
+   ObjectSetInteger(0, visualCueName, OBJPROP_COLOR, clrBlue);
+   // PrintFormat("Closed Position - retcode=%u  deal=%I64u  order=%I64u  ticket=%I64d.", mTradeResult.retcode, mTradeResult.deal, mTradeResult.order, ticket);
    
    return true;
 }
@@ -222,6 +239,10 @@ void setupGenericTradeRequest() {
 }
 
 bool sendOrder() {
+   if (mTradeRequest.magic != EAMagic) {
+      PrintFormat("EA Magic number mismatch. Send order request rejected. Expected %d but got %d.", mTradeRequest.magic, EAMagic);
+   }
+   
    if (OrderSend(mTradeRequest, mTradeResult)) {
       // Basic validation passed so check returned result now
       // Request is completed or order placed 
