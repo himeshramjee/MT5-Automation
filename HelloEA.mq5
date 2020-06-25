@@ -37,7 +37,8 @@ enum ENUM_HELLOEA_STRATEGIES {
 };
 
 input group "Hello EA Options";
-input ENUM_HELLOEA_STRATEGIES selectedEAStrategy = RSI_OBOS; // Selected Strategy
+input ENUM_HELLOEA_STRATEGIES selectedEAStrategy = RSI_OBOS;   // Selected Strategy
+input ENUM_TIMEFRAMES chartTimeFrame = PERIOD_M1;              // Select a chart timeframe
 
 #include <EAUtils/EAUtils.mqh>
 #include <EAUtils/TradeUtils.mqh>
@@ -68,7 +69,8 @@ string marginInfoMessage = StringFormat("Brokers Margin call settings for accoun
 //+------------------------------------------------------------------+
 int OnInit() {
      
-   PrintFormat("Welcome to Hello EA!");
+   Print("Welcome to Hello EA!");
+   Print("Selected chart timeframe is ", chartTimeFrame);
    
    Print(accountInfoMessage);
    Print(marginInfoMessage);

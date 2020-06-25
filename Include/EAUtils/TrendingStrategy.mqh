@@ -24,12 +24,12 @@ bool initTrendingIndicators() {
 
    //--- Get handle for ADX indicator
    // NULL and 0 are the Symbol and Timeframe values respectively and values returned are from the currently active chart
-   s1ADXHandle = iADX(NULL, 0, s1ADXPeriod);
+   s1ADXHandle = iADX(NULL, chartTimeFrame, s1ADXPeriod);
    
    //--- Get the handle for Moving Average indicator
    // _Symbol, symbol() or NULL return the Chart Symbol for the currently active chart
-   // _Period, period() or 0 return the Timeframe for the currently active chart
-   s1MAHandle = iMA(_Symbol,_Period, s1MAPeriod, 0, MODE_EMA, PRICE_CLOSE);
+   // chartTimeFrame, period() or 0 return the Timeframe for the currently active chart
+   s1MAHandle = iMA(_Symbol, chartTimeFrame, s1MAPeriod, 0, MODE_EMA, PRICE_CLOSE);
    
    //--- What if handle returns Invalid Handle
    if(s1ADXHandle < 0 || s1MAHandle < 0) {
@@ -64,7 +64,7 @@ void releaseTrendingIndicators() {
 
 void populateTrendingPrices() {
    // Get the details of the latest 3 bars
-   if(CopyRates(_Symbol,_Period, 0, 3, symbolPriceValues) < 0) {
+   if(CopyRates(_Symbol, chartTimeFrame, 0, 3, symbolPriceValues) < 0) {
       // TODO: Post to Journal
       Alert("Error copying rates/history data - error:", GetLastError(), ". ");
       return;

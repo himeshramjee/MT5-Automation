@@ -19,7 +19,7 @@ double   s3RSIPreviousValue = 0.0;
 double   s3RSICurrentValue = 0.0;
 
 bool initRSISpikeIndicators() {
-   s3RSIHandle = iRSI(NULL, 0, s3RSIWorkingPeriod, PRICE_CLOSE);
+   s3RSIHandle = iRSI(NULL, chartTimeFrame, s3RSIWorkingPeriod, PRICE_CLOSE);
    
    //--- What if handle returns Invalid Handle
    if(s3RSIHandle < 0) {
