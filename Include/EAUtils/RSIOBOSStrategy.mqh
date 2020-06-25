@@ -67,7 +67,7 @@ void runRSIOBOSSellStrategy() {
       s2SellConditionPriceAtSignal = latestTickPrice.bid;
       
       // Add a visual cue
-      ObjectCreate(0, (string)s2SellCondition1TimeAtSignal, OBJ_ARROW_SELL, 0, TimeCurrent(), latestTickPrice.bid);
+      ObjectCreate(0, (string)s2SellCondition1TimeAtSignal, OBJ_ARROW_DOWN, 0, TimeCurrent(), latestTickPrice.bid);
       ObjectSetInteger(0, (string)s2SellCondition1TimeAtSignal, OBJPROP_ANCHOR, ANCHOR_BOTTOM);
       ObjectSetInteger(0, (string)s2SellCondition1TimeAtSignal, OBJPROP_COLOR, clrRed);
       
@@ -116,7 +116,7 @@ void runRSIOBOSBuyStrategy() {
       s2BuyConditionPriceAtSignal = latestTickPrice.bid;
       
       // Add a visual cue
-      ObjectCreate(0, (string)s2BuyCondition1TimeAtSignal, OBJ_ARROW_BUY, 0, TimeCurrent(), latestTickPrice.bid);
+      ObjectCreate(0, (string)s2BuyCondition1TimeAtSignal, OBJ_ARROW_UP, 0, TimeCurrent(), latestTickPrice.bid);
       ObjectSetInteger(0, (string)s2BuyCondition1TimeAtSignal, OBJPROP_ANCHOR, ANCHOR_TOP);
       ObjectSetInteger(0, (string)s2BuyCondition1TimeAtSignal, OBJPROP_COLOR, clrBlue);
       
