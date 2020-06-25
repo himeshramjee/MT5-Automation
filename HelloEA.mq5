@@ -40,12 +40,18 @@ input group "Hello EA Options";
 input ENUM_HELLOEA_STRATEGIES selectedEAStrategy = RSI_OBOS;   // Selected Strategy
 input ENUM_TIMEFRAMES chartTimeFrame = PERIOD_M1;              // Select a chart timeframe
 
+bool enableEATrading = true;                                  // True to enable bot trading, false to only signal
+
+#include <Controls/Button.mqh>
+
 #include <EAUtils/EAUtils.mqh>
 #include <EAUtils/TradeUtils.mqh>
 // #include <EAUtils/PriceUtils.mqh>
 #include <EAUtils/TrendingStrategy.mqh>
 #include <EAUtils/RSIOBOSStrategy.mqh>
 #include <EAUtils/RSISpikeStrategy.mqh>
+
+CButton eaStartStopButton;
 
 string accountName = AccountInfoString(ACCOUNT_NAME);
 string accountCurrency = AccountInfoString(ACCOUNT_CURRENCY);
@@ -68,9 +74,13 @@ string marginInfoMessage = StringFormat("Brokers Margin call settings for accoun
 //| Expert initialization function                                   |
 //+------------------------------------------------------------------+
 int OnInit() {
-     
    Print("Welcome to Hello EA!");
    Print("Selected chart timeframe is ", chartTimeFrame);
+   Print("HelloEA trades are ", (enableEATrading ? "Enabled." : "Disabled."));
+   
+   if (!createEAStartStopButton()) {
+      return(INIT_FAILED);
+   }
    
    Print(accountInfoMessage);
    Print(marginInfoMessage);
@@ -166,5 +176,16 @@ void OnTick() {
       runRSISpikesStrategy();
    } else {
       Print("Hello EA found no valid selected strategy.");
+   }
+}
+
+void OnChartEvent(const int id, const long& lparam, const double& dparam, const string& sparam) {
+   if (id == CHARTEVENT_OBJECT_CLICK) {
+      // PrintFormat("You clicked on chart. lparam/x-coordinate is %d. dparam/y-coordinate is %f. sparam/object-name is %s.", lparam, dparam, sparam);
+      // Comment(StringFormat("You clicked on chart. lparam/x-coordinate is %d. dparam/y-coordinate is %f. sparam/no-clue-yet is %s.", lparam, dparam, sparam));
+      
+      if (sparam == "eaStartStopButton") {
+         eaStartStopButtonHandler();     
+      }
    }
 }

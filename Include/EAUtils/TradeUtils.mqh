@@ -145,6 +145,10 @@ bool openPositionLimitReached() {
 }
 
 void closePositionsAboveLossLimit() {
+   if (!enableEATrading) {
+      return;
+   }
+
    int openPositionCount = PositionsTotal();
    double totalFloatingLoss = 0.0;
    double totalRealizedLosses = 0.0;
@@ -186,6 +190,10 @@ void closePositionsAboveLossLimit() {
 }
 
 bool closePosition(ulong magic, ulong ticket, string symbol, ENUM_POSITION_TYPE positionType, double volume, string commentToAppend) {
+   if (!enableEATrading) {
+      return false;
+   }
+
    if (magic != EAMagic) {
       PrintFormat("EA Magic number mismatch. Close %s position (ticket#: %d) request rejected. Expected %d but got %d.", EnumToString(positionType), ticket, mTradeRequest.magic, EAMagic);
       return false;
@@ -239,6 +247,10 @@ void setupGenericTradeRequest() {
 }
 
 bool sendOrder() {
+   if (!enableEATrading) {
+      return false;
+   }
+
    if (mTradeRequest.magic != EAMagic) {
       PrintFormat("EA Magic number mismatch. Send order request rejected. Expected %d but got %d.", mTradeRequest.magic, EAMagic);
    }
