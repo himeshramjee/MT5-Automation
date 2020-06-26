@@ -12,7 +12,7 @@ input bool     s2BoomMode = true;                  // Trade Boom if true, trade 
 input double   s2RSISignalLevel = 78.0;            // RSI level to trigger new order signal
 input double   s2RSITakeProfitLevel = 30.0;        // RSI level for Take Profit
 input int      s2RSIPositionOpenDelayMinutes = 0;  // Number of minutes to wait before opening a new position
-input bool     s2ConfirmSpotPrice = false;         // Open new position after confirming spot price
+input bool     s2ConfirmSpotPrice = true;         // Open new position after confirming spot price
 
 double rsiVal[];
 int rsiHandle;
