@@ -1,11 +1,3 @@
-//+------------------------------------------------------------------+
-//|                                                   TradeUtils.mqh |
-//|                        Copyright 2020, MetaQuotes Software Corp. |
-//|                                             https://www.mql5.com |
-//+------------------------------------------------------------------+
-#property copyright "Copyright 2020, MetaQuotes Software Corp."
-#property link      "https://www.mql5.com"
-
 input group "Positioning (All strategies)";
 input double lossLimitInCurrency = 50; // Limit loss value per trade
 input int openPositionsLimit = 2; // Open Positions Limit
@@ -172,7 +164,7 @@ void closePositionsAboveLossLimit() {
          // Loss is over user set limit so close the position
          PrintFormat("Closing loss position - %s, Ticket: %d. Symbol: %s. Profit/Loss: %f <= %f", EnumToString(positionType), ticket, symbol, profitLoss, lossLimitInCurrency * -1);
          
-         closePosition(magic, ticket, symbol, positionType, volume, commentToAppend);
+         closePosition(magic, ticket, symbol, positionType, volume, commentToAppend, false);
          lossLimitPositionsClosedCount++;
          totalRealizedLosses += profitLoss;
       } else if (profitLoss < 0) {
@@ -189,7 +181,7 @@ void closePositionsAboveLossLimit() {
    }
 }
 
-bool closePosition(ulong magic, ulong ticket, string symbol, ENUM_POSITION_TYPE positionType, double volume, string commentToAppend) {
+bool closePosition(ulong magic, ulong ticket, string symbol, ENUM_POSITION_TYPE positionType, double volume, string commentToAppend, bool profitable) {
    if (!enableEATrading) {
       return false;
    }
@@ -223,9 +215,16 @@ bool closePosition(ulong magic, ulong ticket, string symbol, ENUM_POSITION_TYPE 
    
    string visualCueName = StringFormat("Close position for ticket %d", ticket);
    // Add a visual cue
-   ObjectCreate(0, visualCueName, OBJ_ARROW_THUMB_UP, 0, TimeCurrent(), mTradeRequest.price);
+   if (profitable) {
+      ObjectCreate(0, visualCueName, OBJ_ARROW_THUMB_UP, 0, TimeCurrent(), mTradeRequest.price);
+   } else {
+      ObjectCreate(0, visualCueName, OBJ_ARROW_THUMB_DOWN, 0, TimeCurrent(), mTradeRequest.price);
+   }
    ObjectSetInteger(0, visualCueName, OBJPROP_ANCHOR, ANCHOR_RIGHT_LOWER);
    ObjectSetInteger(0, visualCueName, OBJPROP_COLOR, clrBlue);
+   ObjectSetInteger(0, visualCueName, OBJPROP_SELECTABLE, 1);
+   registerChartObject(visualCueName);
+   
    // PrintFormat("Closed Position - retcode=%u  deal=%I64u  order=%I64u  ticket=%I64d.", mTradeResult.retcode, mTradeResult.deal, mTradeResult.order, ticket);
    
    return true;

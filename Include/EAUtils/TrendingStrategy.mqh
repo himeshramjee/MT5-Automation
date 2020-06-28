@@ -1,17 +1,10 @@
-//+------------------------------------------------------------------+
-//|                                             TrendingStrategy.mqh |
-//|                        Copyright 2020, MetaQuotes Software Corp. |
-//|                                             https://www.mql5.com |
-//+------------------------------------------------------------------+
-#property copyright "Copyright 2020, MetaQuotes Software Corp."
-#property link      "https://www.mql5.com"
-
 //--- input parameters
 input group "S1: Strategy 1 - ADX, MA Trends"
 input int s1ADXPeriod = 8;       // ADX Period
 input int s1MAPeriod = 8;        // Moving Average Period
 input double s1AdxMin = 22.0;    // Minimum ADX Value
-input double s1TakeProfit = 100000;  // Profit (pips)
+// TODO: https://www.mql5.com/en/forum/109552/page4#comment_3049209
+input double s1TakeProfit = 100000;  // Profit (points)
 
 //--- Price parameters
 int s1ADXHandle; // handle for our ADX indicator
@@ -24,12 +17,12 @@ bool initTrendingIndicators() {
 
    //--- Get handle for ADX indicator
    // NULL and 0 are the Symbol and Timeframe values respectively and values returned are from the currently active chart
-   s1ADXHandle = iADX(NULL, chartTimeFrame, s1ADXPeriod);
+   s1ADXHandle = iADX(NULL, chartTimeframe, s1ADXPeriod);
    
    //--- Get the handle for Moving Average indicator
    // _Symbol, symbol() or NULL return the Chart Symbol for the currently active chart
    // chartTimeFrame, period() or 0 return the Timeframe for the currently active chart
-   s1MAHandle = iMA(_Symbol, chartTimeFrame, s1MAPeriod, 0, MODE_EMA, PRICE_CLOSE);
+   s1MAHandle = iMA(_Symbol, chartTimeframe, s1MAPeriod, 0, MODE_EMA, PRICE_CLOSE);
    
    //--- What if handle returns Invalid Handle
    if(s1ADXHandle < 0 || s1MAHandle < 0) {
@@ -64,8 +57,7 @@ void releaseTrendingIndicators() {
 
 void populateTrendingPrices() {
    // Get the details of the latest 3 bars
-   if(CopyRates(_Symbol, chartTimeFrame, 0, 3, symbolPriceValues) < 0) {
-      // TODO: Post to Journal
+   if(CopyRates(_Symbol, chartTimeframe, 0, 3, symbolPriceValues) < 0) {
       Alert("Error copying rates/history data - error:", GetLastError(), ". ");
       return;
    }
@@ -74,13 +66,11 @@ void populateTrendingPrices() {
    if(CopyBuffer(s1ADXHandle, 0, 0, PRICE_CLOSE, adxVal) < 0 
       || CopyBuffer(s1ADXHandle, 1, 0, PRICE_CLOSE, plsDI) < 0
       || CopyBuffer(s1ADXHandle, 2, 0, PRICE_CLOSE, minDI) < 0) {
-      // TODO: Post to Journal
       Alert("Error copying ADX indicator Buffers - error:",GetLastError(),"!!");
       return;
    }
      
    if(CopyBuffer(s1MAHandle, 0, 0, 3, maVal) < 0) {
-      // TODO: Post to Journal
       Alert("Error copying Moving Average indicator buffer - error:",GetLastError());
       return;
    }

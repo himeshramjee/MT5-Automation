@@ -26,10 +26,6 @@
 // 8. Optimizations. e.g. Test use of uchar and other.
 // 9. Prototype done, research class design and make this a real thing
 
-#property copyright "Copyright 2020, MetaQuotes Software Corp."
-#property link      "https://www.mql5.com"
-#property version   "1.00"
-
 enum ENUM_HELLOEA_STRATEGIES {
    EMA_ADX_MA_TRENDS = 0,     // S1: Simple Trending using EMA and ADX
    RSI_OBOS = 1,              // S2: RSI, OBOS, Shorts only
@@ -38,52 +34,37 @@ enum ENUM_HELLOEA_STRATEGIES {
 
 input group "Hello EA Options";
 input ENUM_HELLOEA_STRATEGIES selectedEAStrategy = RSI_OBOS;   // Selected Strategy
-input ENUM_TIMEFRAMES chartTimeFrame = PERIOD_M1;              // Select a chart timeframe
-
-bool enableEATrading = true;                                  // True to enable bot trading, false to only signal
+input ENUM_TIMEFRAMES chartTimeframe = PERIOD_M1;              // Select a chart timeframe
 
 #include <Controls/Button.mqh>
 
 #include <EAUtils/EAUtils.mqh>
 #include <EAUtils/TradeUtils.mqh>
-// #include <EAUtils/PriceUtils.mqh>
 #include <EAUtils/TrendingStrategy.mqh>
 #include <EAUtils/RSIOBOSStrategy.mqh>
 #include <EAUtils/RSISpikeStrategy.mqh>
 
-CButton eaStartStopButton;
+int      accountLeverage = (int) AccountInfoInteger(ACCOUNT_LEVERAGE);
+string   accountCurrency = AccountInfoString(ACCOUNT_CURRENCY);
+double   accountMarginLevel = AccountInfoDouble(ACCOUNT_MARGIN_LEVEL);
 
-string accountName = AccountInfoString(ACCOUNT_NAME);
-string accountCurrency = AccountInfoString(ACCOUNT_CURRENCY);
-int accountLeverage = (int) AccountInfoInteger(ACCOUNT_LEVERAGE);
-
-double accountInitialBalance = NormalizeDouble(AccountInfoDouble(ACCOUNT_BALANCE), 2);
-double accountFloatingProftLoss = NormalizeDouble(AccountInfoDouble(ACCOUNT_PROFIT), 2);
-double accountInitialEquity = NormalizeDouble(AccountInfoDouble(ACCOUNT_EQUITY), 2);
-double accountFreeMargin = NormalizeDouble(AccountInfoDouble(ACCOUNT_MARGIN_FREE), 2);
-
-ENUM_ACCOUNT_STOPOUT_MODE accountMarginSOMode = (ENUM_ACCOUNT_STOPOUT_MODE) AccountInfoInteger(ACCOUNT_MARGIN_SO_MODE);
-double accountMarginLevel = AccountInfoDouble(ACCOUNT_MARGIN_LEVEL);
-double accountMarginSOCall = AccountInfoDouble(ACCOUNT_MARGIN_SO_CALL);
-double accountMarginSOSO = AccountInfoDouble(ACCOUNT_MARGIN_SO_SO);
-
-string accountInfoMessage = StringFormat("Active account is %s. Account leverage is %f and currency is %s. Balance is %f, Floating P/L is %f, Equity is %f and Free Margin is %f.", accountName, accountLeverage, accountCurrency, accountInitialBalance, accountFloatingProftLoss, accountInitialEquity, accountFreeMargin);
-string marginInfoMessage = StringFormat("Brokers Margin call settings for account: SO Mode: %s. Level: %f%. SO Call: %f. SO SO: %f.", EnumToString(accountMarginSOMode), accountMarginLevel, accountMarginSOCall, accountMarginSOSO);
+bool enableEATrading = false;  // True to enable bot trading, false to only signal
 
 //+------------------------------------------------------------------+
 //| Expert initialization function                                   |
 //+------------------------------------------------------------------+
 int OnInit() {
    Print("Welcome to Hello EA!");
-   Print("Selected chart timeframe is ", chartTimeFrame);
+   Print("Selected chart timeframe is ", chartTimeframe);
    Print("HelloEA trades are ", (enableEATrading ? "Enabled." : "Disabled."));
    
-   if (!createEAStartStopButton()) {
+   if (!initEAUtils()) {
       return(INIT_FAILED);
    }
    
-   Print(accountInfoMessage);
-   Print(marginInfoMessage);
+   if (!createEAButtons()) {
+      return(INIT_FAILED);
+   }
 
    if (!validateTradingPermissions()) {
       return(INIT_FAILED);
@@ -141,13 +122,10 @@ void OnDeinit(const int reason) {
       releaseRSISpikeIndicators();
    }
    
+   deInitEAUtils();
+   
    // Print stats
-   Print("Printing stats for this run before exiting...");
-   PrintFormat("Max used margin was %f %s. Max floating loss was %f %s. Orders missed due to insufficient margin was %d.", maxUsedMargin, accountCurrency, maxFloatingLoss, accountCurrency, insufficientMarginCount);
-   PrintFormat("Closed %d positions that were above loss limit value of %f %s. There are currently %d open positions.", lossLimitPositionsClosedCount, lossLimitInCurrency, accountCurrency, PositionsTotal());
-   Print("Reprinting start up stats...");
-   Print(accountInfoMessage);
-   Print(marginInfoMessage);
+   printAccountInfo();
    Print("Hello EA is stopped.");
 }
 
@@ -173,19 +151,32 @@ void OnTick() {
    } else if (selectedEAStrategy == ENUM_HELLOEA_STRATEGIES::RSI_OBOS) {
       runRSIOBOSStrategy();
    } else if (selectedEAStrategy == ENUM_HELLOEA_STRATEGIES::RSI_SPIKES) {
-      runRSISpikesStrategy();
+      runRSISpikeStrategy();
    } else {
       Print("Hello EA found no valid selected strategy.");
    }
 }
 
-void OnChartEvent(const int id, const long& lparam, const double& dparam, const string& sparam) {
-   if (id == CHARTEVENT_OBJECT_CLICK) {
-      // PrintFormat("You clicked on chart. lparam/x-coordinate is %d. dparam/y-coordinate is %f. sparam/object-name is %s.", lparam, dparam, sparam);
-      // Comment(StringFormat("You clicked on chart. lparam/x-coordinate is %d. dparam/y-coordinate is %f. sparam/no-clue-yet is %s.", lparam, dparam, sparam));
-      
-      if (sparam == "eaStartStopButton") {
-         eaStartStopButtonHandler();     
-      }
-   }
+
+void printAccountInfo(){
+   string                     accountName = AccountInfoString(ACCOUNT_NAME);
+
+   double                     accountInitialBalance = NormalizeDouble(AccountInfoDouble(ACCOUNT_BALANCE), 2);
+   double                     accountFloatingProftLoss = NormalizeDouble(AccountInfoDouble(ACCOUNT_PROFIT), 2);
+   double                     accountInitialEquity = NormalizeDouble(AccountInfoDouble(ACCOUNT_EQUITY), 2);
+   double                     accountFreeMargin = NormalizeDouble(AccountInfoDouble(ACCOUNT_MARGIN_FREE), 2);
+   double                     accountMarginInitial = NormalizeDouble(AccountInfoDouble(ACCOUNT_MARGIN_INITIAL), 2);
+   double                     accountMarginMaintenance = NormalizeDouble(AccountInfoDouble(ACCOUNT_MARGIN_MAINTENANCE), 2);
+   
+   ENUM_ACCOUNT_STOPOUT_MODE  accountMarginSOMode = (ENUM_ACCOUNT_STOPOUT_MODE) AccountInfoInteger(ACCOUNT_MARGIN_SO_MODE);
+   double                     accountMarginSOCall = AccountInfoDouble(ACCOUNT_MARGIN_SO_CALL);
+   double                     accountMarginSOSO = AccountInfoDouble(ACCOUNT_MARGIN_SO_SO);
+   
+   string                     accountInfoMessage = StringFormat("Active account is %s. Account leverage: %f. Currency: %s. Balance: %f. Floating P/L: %f. Equity: %f. Free Margin: %f. Initial Margin: %f. Margin Maintenance: %f.", accountName, accountLeverage, accountCurrency, accountInitialBalance, accountFloatingProftLoss, accountInitialEquity, accountFreeMargin, accountMarginInitial, accountMarginMaintenance);
+   string                     marginInfoMessage = StringFormat("Brokers Margin call settings for account: SO Mode: %s. Level: %f%. SO Call: %f. SO SO: %f.", EnumToString(accountMarginSOMode), accountMarginLevel, accountMarginSOCall, accountMarginSOSO);
+   
+   Print(accountInfoMessage);
+   Print(marginInfoMessage);
+   PrintFormat("Max used margin was %f %s. Max floating loss was %f %s. Orders missed due to insufficient margin was %d.", maxUsedMargin, accountCurrency, maxFloatingLoss, accountCurrency, insufficientMarginCount);
+   PrintFormat("Closed %d positions that were above loss limit value of %f %s. There are currently %d open positions.", lossLimitPositionsClosedCount, lossLimitInCurrency, accountCurrency, PositionsTotal());
 }
