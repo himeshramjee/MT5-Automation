@@ -14,95 +14,92 @@
 //| https://www.mql5.com/en/docs/event_handlers/ontick
 //+------------------------------------------------------------------+
 
-// TODOs:
-// 0. Ongoing - Iterate on strategy back testing and improvements.
-// 1. Done - At the least see if we can split methods out into separate files.
-// 2. Find a linter.
-// 3. Done - Implement RSI strategy.
-// 4. Rewrite Stop Loss and Take Profit calculations. Ball ache of note due to different broker and asset types.
-// 5. Done - Let user activate 1 or more strategies. Update: Decided on single strategy at a time.
-// 6. Not a single try/catch?!
-// 7. Add input validations to user inputs and methods. 
-// 8. Optimizations. e.g. Test use of uchar and other.
-// 9. Prototype done, research class design and make this a real thing
+// #property indicator_separate_window
 
 enum ENUM_HELLOEA_STRATEGIES {
    EMA_ADX_MA_TRENDS = 0,     // S1: Simple Trending using EMA and ADX
    RSI_OBOS = 1,              // S2: RSI, OBOS, Shorts only
-   RSI_SPIKES = 2             // S3: RSI, Spikes, Shorts only
+   RSI_SPIKES = 2,            // S3: RSI, Spikes, Shorts only
+   STOCH_ICHI = 3             // S4: Silent Stoch and Ichimoku
 };
 
-input group "Hello EA Options";
-input ENUM_HELLOEA_STRATEGIES selectedEAStrategy = RSI_OBOS;   // Selected Strategy
-input ENUM_TIMEFRAMES chartTimeframe = PERIOD_M1;              // Select a chart timeframe
+input group "Hello EA options";
+input ENUM_HELLOEA_STRATEGIES selectedEAStrategy = ENUM_HELLOEA_STRATEGIES::STOCH_ICHI;   // Selected Strategy
+input ENUM_TIMEFRAMES chartTimeframe = PERIOD_M1;                                         // Select a chart timeframe
 
 #include <Controls/Button.mqh>
 
 #include <EAUtils/EAUtils.mqh>
+#include <EAUtils/MarketUtils.mqh>
 #include <EAUtils/TradeUtils.mqh>
+
 #include <EAUtils/TrendingStrategy.mqh>
 #include <EAUtils/RSIOBOSStrategy.mqh>
 #include <EAUtils/RSISpikeStrategy.mqh>
+#include <EAUtils/StochimokuStrategy.mqh>
 
 int      accountLeverage = (int) AccountInfoInteger(ACCOUNT_LEVERAGE);
 string   accountCurrency = AccountInfoString(ACCOUNT_CURRENCY);
 double   accountMarginLevel = AccountInfoDouble(ACCOUNT_MARGIN_LEVEL);
 
-bool enableEATrading = false;  // True to enable bot trading, false to only signal
+bool enableEATrading = true;  // True to enable bot trading, false to only signal
+bool eaInitCompleted = false;
 
 //+------------------------------------------------------------------+
 //| Expert initialization function                                   |
 //+------------------------------------------------------------------+
 int OnInit() {
-   Print("Welcome to Hello EA!");
-   Print("Selected chart timeframe is ", chartTimeframe);
-   Print("HelloEA trades are ", (enableEATrading ? "Enabled." : "Disabled."));
-   
+   isTraderReady();
+
    if (!initEAUtils()) {
-      return(INIT_FAILED);
+      return INIT_FAILED;
    }
    
    if (!createEAButtons()) {
-      return(INIT_FAILED);
+      return INIT_FAILED;
    }
 
    if (!validateTradingPermissions()) {
-      return(INIT_FAILED);
+      return INIT_FAILED;
    }
 
    string message;
-   if(!validateOrderVolume(lot, message)) {
-      Alert(StringFormat("Configured lot size (%.2f) isn't within Symbol Specification.", lot));
+   if(!validateOrderVolume(message)) {
       Alert(message);
-      return(INIT_FAILED);
+      return INIT_FAILED;
+   }
+
+   if (!initMarketUtils()) {
+      return INIT_FAILED;
    }
 
    //--- create timer
    EventSetTimer(60);
-   
+
    if (selectedEAStrategy == ENUM_HELLOEA_STRATEGIES::EMA_ADX_MA_TRENDS) {
       if(!initTrendingIndicators()) {
-         return(INIT_FAILED);
+         return INIT_FAILED;
       }
    } else if (selectedEAStrategy == ENUM_HELLOEA_STRATEGIES::RSI_OBOS) {
       if(!initRSIOBOSIndicators()) {
-         return(INIT_FAILED);
+         return INIT_FAILED;
       }
    } else if (selectedEAStrategy == ENUM_HELLOEA_STRATEGIES::RSI_SPIKES) {
       if(!initRSISpikeIndicators()) {
-         return(INIT_FAILED);
+         return INIT_FAILED;
+      }
+   } else if (selectedEAStrategy == ENUM_HELLOEA_STRATEGIES::STOCH_ICHI) {
+      if (!initStochimokuIndicators()) {
+         return INIT_FAILED;
       }
    } else {
       Print("No valid trading strategy is defined. HelloEA cannot start.");
-      return(INIT_FAILED);
-   }
-   
-   if (!checkBarCount()) {
-      return(INIT_FAILED);
+      return INIT_FAILED;
    }
    
    Print("Hello EA has successfully initialized. Running...");
-   return(INIT_SUCCEEDED);
+   eaInitCompleted = true;
+   return INIT_SUCCEEDED;
 }
 
 //+------------------------------------------------------------------+
@@ -120,12 +117,16 @@ void OnDeinit(const int reason) {
       releaseRSIOBOSIndicators();
    } else if (selectedEAStrategy == ENUM_HELLOEA_STRATEGIES::RSI_SPIKES) {
       releaseRSISpikeIndicators();
+   } else if (selectedEAStrategy == ENUM_HELLOEA_STRATEGIES::STOCH_ICHI) {
+      releaseStochimokuIndicators();
    }
    
    deInitEAUtils();
+   deInitMarketUtils();
    
    // Print stats
    printAccountInfo();
+   
    Print("Hello EA is stopped.");
 }
 
@@ -134,11 +135,18 @@ void OnDeinit(const int reason) {
 //+------------------------------------------------------------------+
 // Called each time a new tick/price quote is received
 void OnTick() {
+     
+   // FIXME: Retest. This may no longer be needed.
+   if (!eaInitCompleted) {
+      Print("Warning: Skipping tick event as eaInitCompleted is false.");
+   }
+   
    if (!checkBarCount() || !isNewBar()) {
       return;
    }
    
-   if (!setTickPricing()) {
+   if (!handleMarketTickEvent()) {
+      ExpertRemove();
       return;
    }
    
@@ -147,16 +155,43 @@ void OnTick() {
    calculateMaxUsedMargin();  
    
    if (selectedEAStrategy == ENUM_HELLOEA_STRATEGIES::EMA_ADX_MA_TRENDS) {
-      runTrendingStrategy();
+      if (runTrendingStrategy()) {
+         sendOrder();
+      }  
    } else if (selectedEAStrategy == ENUM_HELLOEA_STRATEGIES::RSI_OBOS) {
-      runRSIOBOSStrategy();
+      if (runRSIOBOSStrategy()) {
+         sendOrder();
+      }  
    } else if (selectedEAStrategy == ENUM_HELLOEA_STRATEGIES::RSI_SPIKES) {
-      runRSISpikeStrategy();
+      if (runRSISpikeStrategy()) {
+         sendOrder();
+      }  
+   } else if (selectedEAStrategy == ENUM_HELLOEA_STRATEGIES::STOCH_ICHI) {
+      if (runStochimokuStrategy()) {
+         sendOrder();
+      }  
    } else {
       Print("Hello EA found no valid selected strategy.");
-   }
+   }   
 }
 
+bool isTraderReady() {
+   string autoTraderWarningMessage = "Automated trading is risky. Ensure you test this EA with a demo account first. Use good risk management at all times!";
+   Print(autoTraderWarningMessage);
+   
+   if (MQLInfoInteger(MQL_TESTER) != 1 && MQLInfoInteger(MQL_VISUAL_MODE) != 1) {
+      int answer = MessageBox(autoTraderWarningMessage, "Warning: Automated trading could blow your account", MB_OK);
+      if(answer != IDOK) {
+         return false;
+      }
+   }
+
+   Print("Welcome to Hello EA!");
+   Print("Selected chart timeframe is ", chartTimeframe);
+   Print("HelloEA trades are ", (enableEATrading ? "Enabled." : "Disabled."));
+   
+   return true;
+}
 
 void printAccountInfo(){
    string                     accountName = AccountInfoString(ACCOUNT_NAME);

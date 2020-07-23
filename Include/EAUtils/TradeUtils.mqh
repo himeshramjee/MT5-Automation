@@ -1,30 +1,17 @@
 input group "Positioning (All strategies)";
 input double lossLimitInCurrency = 50; // Limit loss value per trade
-input int openPositionsLimit = 2; // Open Positions Limit
-input double lot = 0.2;       // Lots to Trade
+input int openPositionsLimit = 1; // Open Positions Limit
+input double lotSize = 4.0;       // Lots to Trade
 
 // Order parameters
 MqlTradeRequest mTradeRequest;   // To be used for sending our trade requests
 MqlTradeResult mTradeResult;     // To be used to get our trade results
-MqlTick latestTickPrice;         // To be used for getting recent/latest price quotes
-
-bool doPlaceOrder = false;
 
 // Stats
 int lossLimitPositionsClosedCount = 0;
 double maxUsedMargin = 0.0;
 double maxFloatingLoss = 0.0;
 int insufficientMarginCount = 0;
-
-bool setTickPricing() {
-   // Get the last price quote using the MQL5 MqlTick Structure
-   if(!SymbolInfoTick(_Symbol, latestTickPrice)) {
-      Alert("Error getting the latest price quote - error:", GetLastError(), ". ");
-      return false;
-   }
-      
-   return true;
-}
 
 bool accountHasSufficientMargin(string symb, double lots, ENUM_ORDER_TYPE type) {
    double price = latestTickPrice.ask;
@@ -41,7 +28,7 @@ bool accountHasSufficientMargin(string symb, double lots, ENUM_ORDER_TYPE type) 
    if(!OrderCalcMargin(type, _Symbol, lots, price, requiredMargin)) {
       Print("Error in ",__FUNCTION__," code=", GetLastError());
 
-      return(false);
+      return false;
    }
       
    // PrintFormat("Margin check: Free margin is %f %s. Required Margin is %f %s. Account Margin level is %f%%.", freeMargin, accountCurrency, requiredMargin, accountCurrency, accountMarginLevel);
@@ -50,42 +37,42 @@ bool accountHasSufficientMargin(string symb, double lots, ENUM_ORDER_TYPE type) 
    if(requiredMargin > freeMargin) {
       insufficientMarginCount++;
       PrintFormat("Not enough money for %s %f lots of %s (Error code = %d). Required margin is %f %s. Free Margin is %f %s. Account Margin Level is %f%%.", EnumToString(type), lots, _Symbol, GetLastError(), requiredMargin, accountCurrency, freeMargin, accountCurrency, accountMarginLevel);      
-      return(false);
+      return false;
    }
    
    // User has sufficient margin to take the trade   
-   return(true);
+   return true;
 }
 
-// TODO: Note this example uses the pointer reference for description. Doubt it's necessary.
-bool validateOrderVolume(double volume, string &description) {
+// FIXME: Note this example uses the pointer reference for description. Doubt it's necessary.
+bool validateOrderVolume(string &description) {
    //--- minimal allowed volume for trade operations
-   double min_volume = SymbolInfoDouble(Symbol(), SYMBOL_VOLUME_MIN);
-   if(volume < min_volume) {
+   double min_volume = SymbolInfoDouble(_Symbol, SYMBOL_VOLUME_MIN);
+   if(lotSize < min_volume) {
       description = StringFormat("Volume is less than the minimal allowed SYMBOL_VOLUME_MIN=%.2f", min_volume);
-      return(false);
+      return false;
    }
 
    //--- maximal allowed volume of trade operations
-   double max_volume = SymbolInfoDouble(Symbol(), SYMBOL_VOLUME_MAX);
-   if(volume > max_volume) {
+   double max_volume = SymbolInfoDouble(_Symbol, SYMBOL_VOLUME_MAX);
+   if(lotSize > max_volume) {
       description = StringFormat("Volume is greater than the maximal allowed SYMBOL_VOLUME_MAX=%.2f", max_volume);
-      return(false);
+      return false;
    }
 
    //--- get minimal step of volume changing
-   double volume_step = SymbolInfoDouble(Symbol(), SYMBOL_VOLUME_STEP);
+   double volume_step = SymbolInfoDouble(_Symbol, SYMBOL_VOLUME_STEP);
 
-   int ratio = (int) MathRound(volume / volume_step);
-   if(MathAbs(ratio * volume_step - volume) > 0.0000001) {
+   int ratio = (int) MathRound(lotSize / volume_step);
+   if(MathAbs(ratio * volume_step - lotSize) > 0.0000001) {
       description = StringFormat("Volume is not a multiple of the minimal step SYMBOL_VOLUME_STEP=%.2f, the closest correct volume is %.2f",
                                volume_step,ratio*volume_step);
-      return(false);
+      return false;
    }
    
-   description = StringFormat("Correct volume value (%.2f)", volume);
+   description = StringFormat("Correct volume value (%.2f)", lotSize);
    
-   return(true);
+   return true;
 }
 
 ENUM_ORDER_TYPE_FILLING getOrderFillMode() {
@@ -225,8 +212,6 @@ bool closePosition(ulong magic, ulong ticket, string symbol, ENUM_POSITION_TYPE 
    ObjectSetInteger(0, visualCueName, OBJPROP_SELECTABLE, 1);
    registerChartObject(visualCueName);
    
-   // PrintFormat("Closed Position - retcode=%u  deal=%I64u  order=%I64u  ticket=%I64d.", mTradeResult.retcode, mTradeResult.deal, mTradeResult.order, ticket);
-   
    return true;
 }
 
@@ -237,7 +222,7 @@ void setupGenericTradeRequest() {
    
    mTradeRequest.action = TRADE_ACTION_DEAL;                                    // immediate order execution
    mTradeRequest.symbol = _Symbol;                                              // currency pair
-   mTradeRequest.volume = lot;                                                  // number of lots to trade
+   mTradeRequest.volume = lotSize;                                                  // number of lots to trade
    mTradeRequest.magic = EAMagic;                                              // Order Magic Number
    mTradeRequest.type_filling = getOrderFillMode();
    mTradeRequest.deviation = 5;                                                 // Deviation from current price
@@ -247,6 +232,12 @@ void setupGenericTradeRequest() {
 
 bool sendOrder() {
    if (!enableEATrading) {
+      return false;
+   }
+     
+   // Do we have enough cash to place an order?
+   if (!accountHasSufficientMargin(_Symbol, lotSize, mTradeRequest.type)) {
+      Print("Insufficient funds in account. Disable this EA until you sort that out.");
       return false;
    }
 
