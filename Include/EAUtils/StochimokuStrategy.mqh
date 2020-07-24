@@ -140,28 +140,29 @@ bool runStochimokuSellStrategy() {
    static datetime s4SellCondition1TimeAtSignal;
    static double s4SellConditionPriceAtSignal;
    
-   if (!isMarketTrendingBearish()) {
+   // if (!isMarketTrendingBearish()) {
+   // PrintFormat("Checking conditions: Signal is currently %s and active conditions count is %d.", (string)s4SellCondition1SignalOn, bearishPatternsFoundCounter);
+   if (bearishPatternsFoundCounter == 0) {
       return false;
    }
    
-   if (!s4SellCondition1SignalOn && s4StoSignalBuffer[0] >= 80) { // && s4IchKijunSenBuffer[0] >= 80) {
-      string message = StringFormat("s4StoMainBuffer[0] = %f, s4StoSignalBuffer[0] = %f, s4IchTenkanSanBuffer[0] = %f, s4IchKijunSenBuffer[0] = %f, s4IchChinkouSpanBuffer[0] = %f, s4IchSenkouSpanABuffer[0] = %f, s4IchSenkouSpanBBuffer[0] = %f.", s4StoMainBuffer[0], s4StoSignalBuffer[0], s4IchTenkanSanBuffer[0], s4IchKijunSenBuffer[0], s4IchChinkouSpanBuffer[0], s4IchSenkouSpanABuffer[0], s4IchSenkouSpanBBuffer[0]);
-      Print(message);;
+   if (!s4SellCondition1SignalOn && bearishPatternsFoundCounter > 0) { // && s4StoSignalBuffer[0] >= 80) { // && s4IchKijunSenBuffer[0] >= 80) {
+      // string message = StringFormat("s4StoMainBuffer[0] = %f, s4StoSignalBuffer[0] = %f, s4IchTenkanSanBuffer[0] = %f, s4IchKijunSenBuffer[0] = %f, s4IchChinkouSpanBuffer[0] = %f, s4IchSenkouSpanABuffer[0] = %f, s4IchSenkouSpanBBuffer[0] = %f.", s4StoMainBuffer[0], s4StoSignalBuffer[0], s4IchTenkanSanBuffer[0], s4IchKijunSenBuffer[0], s4IchChinkouSpanBuffer[0], s4IchSenkouSpanABuffer[0], s4IchSenkouSpanBBuffer[0]);
+      // Print(message);;
 
       s4SellCondition1SignalOn = true;
       s4SellCondition1TimeAtSignal = TimeCurrent();
       s4SellConditionPriceAtSignal = latestTickPrice.bid;
       
       // Add a visual cue
-      string visualCueName = StringFormat("S4 signalled at %s. Bid price: %f.", (string)s4SellCondition1TimeAtSignal, latestTickPrice.bid);
-      ObjectCreate(0, visualCueName, OBJ_ARROW_DOWN, 0, TimeCurrent(), latestTickPrice.bid);
-      ObjectSetInteger(0, visualCueName, OBJPROP_ANCHOR, ANCHOR_BOTTOM);
+      string visualCueName = StringFormat("S4 signal at %s. BearishPattern count: %d.", (string)s4SellCondition1TimeAtSignal, bearishPatternsFoundCounter);
+      ObjectCreate(0, visualCueName, OBJ_ARROW_DOWN, 0, s4SellCondition1TimeAtSignal, latestTickPrice.bid + (50 * Point()));
+      ObjectSetInteger(0, visualCueName, OBJPROP_ANCHOR, ANCHOR_TOP);
+      ObjectSetInteger(0, visualCueName, OBJPROP_ALIGN, ALIGN_CENTER);
+      ObjectSetInteger(0, visualCueName, OBJPROP_FILL, true);
       ObjectSetInteger(0, visualCueName, OBJPROP_COLOR, clrRed);
       ObjectSetInteger(0, visualCueName, OBJPROP_SELECTABLE, 1);
       registerChartObject(visualCueName);
-      
-      // Signal triggered, now wait x mins before opening the Sell position      
-      return false; 
    }
    
    if(s4SellCondition1SignalOn) {      
@@ -186,20 +187,22 @@ bool runStochimokuBuyStrategy() {
    static datetime s4BuyCondition1TimeAtSignal;
    static double s4BuyConditionPriceAtSignal;
    
-   if (!isMarketTrendingBullish()) {
+   if (!isMarketTrendingBullish() && bearishPatternsFoundCounter == 0) {
       return false;
    }
       
-   if (!s4BuyCondition1SignalOn && s4StoSignalBuffer[0] <= 20) { // && s4IchKijunSenBuffer[0] <= 20) {
+   if (!s4BuyCondition1SignalOn && (s4StoSignalBuffer[0] <= 20)) { // && s4IchKijunSenBuffer[0] <= 20) {
       s4BuyCondition1SignalOn = true;
       s4BuyCondition1TimeAtSignal = TimeCurrent();
       s4BuyConditionPriceAtSignal = latestTickPrice.bid;
       
       // Add a visual cue
-      string visualCueName = StringFormat("S4 signalled at %s. Ask price: %f.", (string)s4BuyCondition1TimeAtSignal, latestTickPrice.ask);
-      ObjectCreate(0, visualCueName, OBJ_ARROW_DOWN, 0, TimeCurrent(), latestTickPrice.bid);
-      ObjectSetInteger(0, visualCueName, OBJPROP_ANCHOR, ANCHOR_BOTTOM);
-      ObjectSetInteger(0, visualCueName, OBJPROP_COLOR, clrRed);
+      string visualCueName = StringFormat("S4 signalled at %s. StochSignal: %f. Ask price: %f.", (string)s4BuyCondition1TimeAtSignal, s4StoSignalBuffer[0], latestTickPrice.ask);
+      ObjectCreate(0, visualCueName, OBJ_ARROW_UP, 0, s4BuyCondition1TimeAtSignal, latestTickPrice.ask + (20 * Point()));
+      ObjectSetInteger(0, visualCueName, OBJPROP_ANCHOR, ANCHOR_TOP);
+      ObjectSetInteger(0, visualCueName, OBJPROP_ALIGN, ALIGN_CENTER);
+      ObjectSetInteger(0, visualCueName, OBJPROP_FILL, true);
+      ObjectSetInteger(0, visualCueName, OBJPROP_COLOR, clrBlue);
       ObjectSetInteger(0, visualCueName, OBJPROP_SELECTABLE, 1);
       registerChartObject(visualCueName);
       

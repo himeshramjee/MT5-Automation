@@ -121,7 +121,8 @@ void OnDeinit(const int reason) {
       releaseStochimokuIndicators();
    }
    
-   deInitEAUtils();
+   // deInitEAUtils();
+   
    deInitMarketUtils();
    
    // Print stats
@@ -135,7 +136,6 @@ void OnDeinit(const int reason) {
 //+------------------------------------------------------------------+
 // Called each time a new tick/price quote is received
 void OnTick() {
-     
    // FIXME: Retest. This may no longer be needed.
    if (!eaInitCompleted) {
       Print("Warning: Skipping tick event as eaInitCompleted is false.");
