@@ -1,10 +1,8 @@
-#include <Expert/Expert.mqh>
 #include <EAUtils/CandlePatterns.mqh>
 
 // Market data
 input bool              enableMarketPushNotifications = false;        // Enable market data push notifications
 
-CExpert ExtExpert;
 CCandlePattern *candlePatterns;
 
 // EMA Indicator
@@ -17,14 +15,23 @@ double                  emaData[];
 // Market Price quotes
 MqlRates symbolPriceData[];
 MqlTick latestTickPrice;         // To be used for getting recent/latest price quotes
+CSymbolInfo *symbolInfo;
 
 static int bearishPatternsFoundCounter;
 
 bool initMarketUtils() {
-   if (!initExpert()) {
-      return false;
-   }
+   symbolInfo = new CSymbolInfo;
+   symbolInfo.Name(_Symbol);
+   
+   candlePatterns = new CCandlePattern;
+   candlePatterns.MAPeriod(emaPeriod);
+   if(!candlePatterns.Init(symbolInfo, chartTimeframe, 1.0)) { return false; }
+   
+   // Validate and initialize the indicator data sets
+   if(!candlePatterns.ValidationSettings()) { return false; }
+   // if(!candlePatterns.InitIndicators()){  return false;  }
 
+   // FIXME: Old code
    emaIndicatorHandle = iMA(_Symbol, emaTimeframe, emaPeriod, 0, MODE_EMA, PRICE_CLOSE);
    
    if (emaIndicatorHandle == INVALID_HANDLE) {
@@ -35,7 +42,7 @@ bool initMarketUtils() {
    // Ensure indexing of arrays is in timeseries format, i.e. 0 = current unfinished candle to n = oldest candle
    ArraySetAsSeries(symbolPriceData, true);
    ArraySetAsSeries(emaData, true);
-      
+
    return true;
 }
 
@@ -43,41 +50,15 @@ void deInitMarketUtils() {
    IndicatorRelease(emaIndicatorHandle);
 }
 
-bool initExpert() {
-   if(!ExtExpert.Init(_Symbol, chartTimeframe, EAEveryTick, EAMagic)) {
-      printf(__FUNCTION__+": error initializing expert");   
-      ExtExpert.Deinit();
-      return false;
-   }
-   
-   // Creating signal and register CandlePatterns as a signal filter
-   CExpertSignal *signal = new CExpertSignal;
-   if(signal==NULL){                printf(__FUNCTION__+": error creating signal"); ExtExpert.Deinit();   return false;  }
-   
-   //signal.Weight(0);          // We're not interested in CExpert automatically doing trades so don't send it any signals
-   ExtExpert.InitSignal(signal);
-   
-   candlePatterns = new CCandlePattern;
-   if(candlePatterns==NULL){               printf(__FUNCTION__+": error creating filter0");  ExtExpert.Deinit();  return false;  }
-   
-   candlePatterns.Weight(0);  // We're not interested in CExpert automatically doing trades so don't send it any signals
-   candlePatterns.MAPeriod(emaPeriod);   
-   signal.AddFilter(candlePatterns);
-   
-   // Validate and initialize the indicator data sets
-   if(!ExtExpert.ValidationSettings()) { printf(__FUNCTION__+": error validating expert settings"); ExtExpert.Deinit(); return false; }
-   if(!ExtExpert.InitIndicators()){  printf(__FUNCTION__+": error initializing indicators"); ExtExpert.Deinit();  return false;  }
-      
-   return true;
-}
-
 bool handleMarketTickEvent() {
-   ExtExpert.OnTick();
-   
    if (!populateMarketData()) {
       return false;
    }
    
+   if (!candlePatterns.OnTickHandler()) {
+      return false;
+   }
+      
    checkMarketConditions();
    
    scanForBearishPriceActionPatterns();

@@ -4,10 +4,10 @@ input double            s4MinimumTakeProfitValue = 5.0;     // Value (in currenc
 input bool              s4TradeCrash = true;                // True to trade Crash, False to trade Boom
 
 // Stoch Indicator
-input ENUM_TIMEFRAMES   s4StoChartTimeframe = PERIOD_M1;  // Chart timeframe to generate Stochastic data
-input int               s4StoKPeriod = 1;                 // the K period (the number of bars for calculation)
-input int               s4StoDPeriod = 1;                 // the D period (the period of primary smoothing)
-input int               s4StoSlowing = 1;                 // period of final smoothing      
+ENUM_TIMEFRAMES   s4StoChartTimeframe = PERIOD_M1;  // Chart timeframe to generate Stochastic data
+int               s4StoKPeriod = 1;                 // the K period (the number of bars for calculation)
+int               s4StoDPeriod = 1;                 // the D period (the period of primary smoothing)
+int               s4StoSlowing = 1;                 // period of final smoothing      
 
 double                  s4StoMainBuffer[];
 double                  s4StoSignalBuffer[];
@@ -15,10 +15,10 @@ int                     s4StochasticHandle;
 int                     s4StoBarCount = 30;
 
 // Ichimoku Indicator
-input ENUM_TIMEFRAMES   s4IchChartTimeframe = PERIOD_M1;    // Chart timeframe to generate Ichimoku data
-input int               s4IchTenkanSan = 9;                // Averaging period for Tekan-san
-input int               s4IchKijunSen = 9;                 // Averaging period for Kijun-sen
-input int               s4IchSenkouSpanB = 52;             // Averaging period forSenkou Span B
+ENUM_TIMEFRAMES   s4IchChartTimeframe = PERIOD_M1;    // Chart timeframe to generate Ichimoku data
+int               s4IchTenkanSan = 9;                // Averaging period for Tekan-san
+int               s4IchKijunSen = 9;                 // Averaging period for Kijun-sen
+int               s4IchSenkouSpanB = 52;             // Averaging period forSenkou Span B
 
 int                     s4IchimokuHandle;
 double                  s4IchTenkanSanBuffer[];
@@ -142,7 +142,7 @@ bool runStochimokuSellStrategy() {
    
    // if (!isMarketTrendingBearish()) {
    // PrintFormat("Checking conditions: Signal is currently %s and active conditions count is %d.", (string)s4SellCondition1SignalOn, bearishPatternsFoundCounter);
-   if (bearishPatternsFoundCounter == 0) {
+   if (bearishPatternsFoundCounter == 0 || !trendIsDown()) {
       return false;
    }
    
