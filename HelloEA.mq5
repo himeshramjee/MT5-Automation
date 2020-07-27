@@ -121,6 +121,9 @@ void OnDeinit(const int reason) {
       releaseStochimokuIndicators();
    }
    
+   // FIXME: Unfortunately this makes analysing results much harder. 
+   // Need to confirm that EA Exit/Remove processing will clean these up properly. Smoke/sniff tests look A-Ok.
+   // At least make this user driven with a chart button.
    // deInitEAUtils();
    
    deInitMarketUtils();
@@ -135,12 +138,7 @@ void OnDeinit(const int reason) {
 //| Expert tick function                                             |
 //+------------------------------------------------------------------+
 // Called each time a new tick/price quote is received
-void OnTick() {
-   // FIXME: Retest. This may no longer be needed.
-   if (!eaInitCompleted) {
-      Print("Warning: Skipping tick event as eaInitCompleted is false.");
-   }
-   
+void OnTick() {   
    if (!checkBarCount() || !isNewBar()) {
       return;
    }

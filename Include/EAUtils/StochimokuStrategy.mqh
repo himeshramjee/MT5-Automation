@@ -43,16 +43,17 @@ bool initStochimokuIndicators() {
       return false;
    }
    
-   int subwindow = (int)ChartGetInteger(0, CHART_WINDOWS_TOTAL);
-   if (subwindow == 0) {
+   int subWindow = (int)ChartGetInteger(0, CHART_WINDOWS_TOTAL);
+   if (subWindow == 0) {
       // 0 is the main window meaning there are no indicator windows currently loaded so load one
-      subwindow = 1;
-   }
-   if(!ChartIndicatorAdd(0, subwindow, s4StochasticHandle)) {
-      PrintFormat("Failed to add Stochastic indicator on %d chart window. Error code  %d", subwindow,GetLastError());
-   }
-   if(!ChartIndicatorAdd(0, subwindow, s4IchimokuHandle)) {
-      PrintFormat("Failed to add Ichimoku indicator on %d chart window. Error code  %d", subwindow,GetLastError());
+      subWindow = 1;
+      
+      if(!ChartIndicatorAdd(0, subWindow, s4StochasticHandle)) {
+         PrintFormat("Failed to add Stochastic indicator on %d chart window. Error code  %d", subWindow,GetLastError());
+      }
+      if(!ChartIndicatorAdd(0, subWindow, s4IchimokuHandle)) {
+         PrintFormat("Failed to add Ichimoku indicator on %d chart window. Error code  %d", subWindow,GetLastError());
+      }
    }
    
    // Ensure indexing of arrays is in timeseries format, i.e. 0 = current unfinished candle to n = oldest candle
@@ -140,9 +141,8 @@ bool runStochimokuSellStrategy() {
    static datetime s4SellCondition1TimeAtSignal;
    static double s4SellConditionPriceAtSignal;
    
-   // if (!isMarketTrendingBearish()) {
    // PrintFormat("Checking conditions: Signal is currently %s and active conditions count is %d.", (string)s4SellCondition1SignalOn, bearishPatternsFoundCounter);
-   if (bearishPatternsFoundCounter == 0 || !trendIsDown()) {
+   if (bearishPatternsFoundCounter == 0 || !isBearishMarket()) {
       return false;
    }
    
@@ -187,14 +187,14 @@ bool runStochimokuBuyStrategy() {
    static datetime s4BuyCondition1TimeAtSignal;
    static double s4BuyConditionPriceAtSignal;
    
-   if (!isMarketTrendingBullish() && bearishPatternsFoundCounter == 0) {
+   if (bullishPatternsFoundCounter == 0 || !isBullishMarket()) {
       return false;
    }
       
    if (!s4BuyCondition1SignalOn && (s4StoSignalBuffer[0] <= 20)) { // && s4IchKijunSenBuffer[0] <= 20) {
       s4BuyCondition1SignalOn = true;
       s4BuyCondition1TimeAtSignal = TimeCurrent();
-      s4BuyConditionPriceAtSignal = latestTickPrice.bid;
+      s4BuyConditionPriceAtSignal = latestTickPrice.ask;
       
       // Add a visual cue
       string visualCueName = StringFormat("S4 signalled at %s. StochSignal: %f. Ask price: %f.", (string)s4BuyCondition1TimeAtSignal, s4StoSignalBuffer[0], latestTickPrice.ask);

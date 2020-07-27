@@ -62,7 +62,7 @@ bool runS3RSISellStrategy() {
    static datetime s3SellCondition1TimeAtSignal;
    static double s3SellConditionPriceAtSignal;
    
-   if (!trendIsDown()) {
+   if (!isBearishMarket()) {
       return false;
    }
    
@@ -120,7 +120,7 @@ bool runS3RSIBuyStrategy() {
    static datetime s3BuyCondition1TimeAtSignal;
    static double s3BuyConditionPriceAtSignal;
    
-   if (trendIsDown()) {
+   if (!isBullishMarket()) {
       return false;
    }
       

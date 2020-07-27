@@ -1,12 +1,12 @@
 #include <EAUtils/CandlePatterns.mqh>
 
 // Market data
-input bool              enableMarketPushNotifications = false;        // Enable market data push notifications
+input bool              enableMarketPushNotifications = true;        // Enable market data push notifications
 
 CCandlePattern *candlePatterns;
+input ENUM_TIMEFRAMES   candlePatternsTimeframe = PERIOD_M15;             // Chart timeframe to generate market signals
 
 // EMA Indicator
-input ENUM_TIMEFRAMES   emaTimeframe = PERIOD_M15;             // Chart timeframe to generate EMA data
 input int               emaPeriod = 20;                         // EMA period
 
 int                     emaIndicatorHandle = INVALID_HANDLE;
@@ -18,6 +18,7 @@ MqlTick latestTickPrice;         // To be used for getting recent/latest price q
 CSymbolInfo *symbolInfo;
 
 static int bearishPatternsFoundCounter;
+static int bullishPatternsFoundCounter;
 
 bool initMarketUtils() {
    symbolInfo = new CSymbolInfo;
@@ -25,14 +26,14 @@ bool initMarketUtils() {
    
    candlePatterns = new CCandlePattern;
    candlePatterns.MAPeriod(emaPeriod);
-   if(!candlePatterns.Init(symbolInfo, chartTimeframe, 1.0)) { return false; }
+   if(!candlePatterns.Init(symbolInfo, candlePatternsTimeframe, 1.0)) { return false; }
    
    // Validate and initialize the indicator data sets
    if(!candlePatterns.ValidationSettings()) { return false; }
    // if(!candlePatterns.InitIndicators()){  return false;  }
 
-   // FIXME: Old code
-   emaIndicatorHandle = iMA(_Symbol, emaTimeframe, emaPeriod, 0, MODE_EMA, PRICE_CLOSE);
+   // FIXME: Old code, 
+   emaIndicatorHandle = iMA(_Symbol, candlePatternsTimeframe, emaPeriod, 0, MODE_EMA, PRICE_CLOSE);
    
    if (emaIndicatorHandle == INVALID_HANDLE) {
       Alert("Error Creating Handle for EMA indicator - error: ", GetLastError(), "!!");
@@ -48,6 +49,8 @@ bool initMarketUtils() {
 
 void deInitMarketUtils() {
    IndicatorRelease(emaIndicatorHandle);
+   candlePatterns.DeInitHandler();
+   delete candlePatterns;
 }
 
 bool handleMarketTickEvent() {
@@ -62,6 +65,8 @@ bool handleMarketTickEvent() {
    checkMarketConditions();
    
    scanForBearishPriceActionPatterns();
+   
+   scanForBullishPriceActionPatterns();
    
    return true;
 }
@@ -107,48 +112,93 @@ void scanForBearishPriceActionPatterns() {
    // int bearishPatternsScanned = 0;
    bearishPatternsFoundCounter = 0;
    
-   if (candlePatterns.CheckCandlestickPattern(ENUM_CANDLE_PATTERNS::CANDLE_PATTERN_BEARISH_ENGULFING)) {
-      highlightPriceActionPattern("Bearish Engulfing", time, price);
-      bearishPatternsFoundCounter++;
-   }
-   
    if (candlePatterns.CheckCandlestickPattern(ENUM_CANDLE_PATTERNS::CANDLE_PATTERN_THREE_BLACK_CROWS)) {
-      highlightPriceActionPattern("3 Black Crows", time, price);
+      highlightPriceActionPattern("3 Black Crows", time, price, clrRed);
       bearishPatternsFoundCounter++;
    }
 
    if (candlePatterns.CheckCandlestickPattern(ENUM_CANDLE_PATTERNS::CANDLE_PATTERN_DARK_CLOUD_COVER)) {
-      highlightPriceActionPattern("Dark Cloud Cover", time, price);
+      highlightPriceActionPattern("Dark Cloud Cover", time, price, clrRed);
       bearishPatternsFoundCounter++;
    }
-   
-   if (candlePatterns.CheckCandlestickPattern(ENUM_CANDLE_PATTERNS::CANDLE_PATTERN_MORNING_DOJI)) {
-      highlightPriceActionPattern("Morning Doji", time, price);
-      bearishPatternsFoundCounter++;
-   }
-   
+      
    if (candlePatterns.CheckCandlestickPattern(ENUM_CANDLE_PATTERNS::CANDLE_PATTERN_EVENING_DOJI)) {
-      highlightPriceActionPattern("Evening Doji", time, price);
+      highlightPriceActionPattern("Evening Doji", time, price, clrRed);
+      bearishPatternsFoundCounter++;
+   }
+   
+   if (candlePatterns.CheckCandlestickPattern(ENUM_CANDLE_PATTERNS::CANDLE_PATTERN_BEARISH_ENGULFING)) {
+      highlightPriceActionPattern("Bearish Engulfing", time, price, clrRed);
       bearishPatternsFoundCounter++;
    }
 
    if (candlePatterns.CheckCandlestickPattern(ENUM_CANDLE_PATTERNS::CANDLE_PATTERN_BEARISH_HARAMI)) {
-      highlightPriceActionPattern("Bearish Harami", time, price);
+      highlightPriceActionPattern("Bearish Harami", time, price, clrRed);
       bearishPatternsFoundCounter++;
    }
    
    if (candlePatterns.CheckCandlestickPattern(ENUM_CANDLE_PATTERNS::CANDLE_PATTERN_EVENING_STAR)) {
-      highlightPriceActionPattern("Evening Star", time, price);
+      highlightPriceActionPattern("Evening Star", time, price, clrRed);
       bearishPatternsFoundCounter++;
    }
    
    if (candlePatterns.CheckCandlestickPattern(ENUM_CANDLE_PATTERNS::CANDLE_PATTERN_BEARISH_MEETING_LINES)) {
-      highlightPriceActionPattern("Bearish Meeting Lines", time, price);
+      highlightPriceActionPattern("Bearish Meeting Lines", time, price, clrRed);
       bearishPatternsFoundCounter++;
    }
 }
 
-void highlightPriceActionPattern(string name, datetime time, double price) {
+void scanForBullishPriceActionPatterns() {
+   // Scan back so patterns would've formed before time of detection/now
+   int priceOffset = 1;
+   
+   // Price line at which to display the visual que
+   double price = symbolPriceData[priceOffset].high;
+   // double price = latestTickPrice.bid;
+
+   // Time line at which to display the visual que
+   datetime time = symbolPriceData[priceOffset].time;
+   
+   // int BullishPatternsScanned = 0;
+   bullishPatternsFoundCounter = 0;
+   
+   if (candlePatterns.CheckCandlestickPattern(ENUM_CANDLE_PATTERNS::CANDLE_PATTERN_THREE_WHITE_SOLDIERS)) {
+      highlightPriceActionPattern("Morning Doji", time, price, clrBlue);
+      bullishPatternsFoundCounter++;
+   }
+   
+   if (candlePatterns.CheckCandlestickPattern(ENUM_CANDLE_PATTERNS::CANDLE_PATTERN_PIERCING_LINE)) {
+      highlightPriceActionPattern("Piercing Line", time, price, clrBlue);
+      bullishPatternsFoundCounter++;
+   }
+   
+   if (candlePatterns.CheckCandlestickPattern(ENUM_CANDLE_PATTERNS::CANDLE_PATTERN_MORNING_DOJI)) {
+      highlightPriceActionPattern("Morning Doji", time, price, clrBlue);
+      bullishPatternsFoundCounter++;
+   }
+
+   if (candlePatterns.CheckCandlestickPattern(ENUM_CANDLE_PATTERNS::CANDLE_PATTERN_BULLISH_ENGULFING)) {
+      highlightPriceActionPattern("Bullish Engulfing", time, price, clrBlue);
+      bullishPatternsFoundCounter++;
+   }
+
+   if (candlePatterns.CheckCandlestickPattern(ENUM_CANDLE_PATTERNS::CANDLE_PATTERN_BULLISH_HARAMI)) {
+      highlightPriceActionPattern("Bullish Harami", time, price, clrBlue);
+      bullishPatternsFoundCounter++;
+   }
+   
+   if (candlePatterns.CheckCandlestickPattern(ENUM_CANDLE_PATTERNS::CANDLE_PATTERN_MORNING_STAR)) {
+      highlightPriceActionPattern("Morning Star", time, price, clrBlue);
+      bullishPatternsFoundCounter++;
+   }
+   
+   if (candlePatterns.CheckCandlestickPattern(ENUM_CANDLE_PATTERNS::CANDLE_PATTERN_BULLISH_MEETING_LINES)) {
+      highlightPriceActionPattern("Bullish Meeting Lines", time, price, clrBlue);
+      bullishPatternsFoundCounter++;
+   }
+}
+
+void highlightPriceActionPattern(string name, datetime time, double price, int colour) {
    // Add a visual cue
    string visualCueName = StringFormat("%s near %s and %f.", name, TimeToString(time), price);
    price = price + (50 * Point());
@@ -156,13 +206,11 @@ void highlightPriceActionPattern(string name, datetime time, double price) {
    if (ObjectCreate(0, visualCueName, OBJ_TEXT, 0, time, price)) {
       ObjectSetString(0, visualCueName, OBJPROP_TEXT, name);
       
-      ObjectSetInteger(0, visualCueName, OBJPROP_COLOR, clrRed);
+      ObjectSetInteger(0, visualCueName, OBJPROP_COLOR, colour);
       // ObjectSetString(0, visualCueName, OBJPROP_FONT, "Wingdings");
       ObjectSetInteger(0, visualCueName, OBJPROP_FONTSIZE, 10);
       ObjectSetDouble(0, visualCueName, OBJPROP_ANGLE, 90.0);      // rotation is clockwise if negative
-         
-      // ObjectSetInteger(0, visualCueName,OBJPROP_XDISTANCE,200);
-      // ObjectSetInteger(0, visualCueName,OBJPROP_YDISTANCE,300);
+
       ObjectSetInteger(0, visualCueName, OBJPROP_ANCHOR, ANCHOR_BOTTOM);      
       ObjectSetInteger(0, visualCueName, OBJPROP_SELECTABLE, 1);
       
@@ -175,7 +223,7 @@ void highlightPriceActionPattern(string name, datetime time, double price) {
 }
 
 bool checkMarketConditions() {
-   string marketConditionComment = StringFormat("Market trend is %s and %s.", isMarketTrendingBearish() ? "bearish" : "not bearish", isMarketTrendingBullish() ? "bullish" : "not bullish");
+   string marketConditionComment = StringFormat("Market trend is %s and %s.", isBearishMarket() ? "bearish" : "not bearish", isBullishMarket() ? "bullish" : "not bullish");
    Comment(marketConditionComment);
    
    return true;
@@ -208,9 +256,15 @@ void highlightMarketCondition(string visualCueName, ENUM_OBJECT objectType, doub
    }
 }
 
-bool isMarketTrendingBearish() {
+bool isBearishMarket() {
    static bool bearishMarket = false;
-   bool bearishMarketNow = candlePatterns.CheckPatternAllBearish();
+   bool bearishMarketNow = false;
+
+   if (symbolPriceData[1].open > symbolPriceData[1].close   // Previous candle was Bearish
+         && latestTickPrice.bid < symbolPriceData[1].close  // Current price is lower than previous close
+         && symbolPriceData[1].close  < emaData[0]) {       // Previous price is below EMA
+      bearishMarket = true;
+   }
    
    if (bearishMarketNow && !bearishMarket) {
       // Print("Market Condition changed: Not Bearish -> Bearish.");
@@ -234,9 +288,15 @@ bool isMarketTrendingBearish() {
    return bearishMarket;
 }
 
-bool isMarketTrendingBullish() {
+bool isBullishMarket() {
    static bool bullishMarket = false;
-   bool bullishMarketNow = candlePatterns.CheckPatternAllBullish();
+   bool bullishMarketNow = false;
+   
+   if (symbolPriceData[1].open < symbolPriceData[1].close   // Previous candle was bullish
+         && latestTickPrice.ask > symbolPriceData[1].close  // Current price is higher than previous close
+         && symbolPriceData[1].close > emaData[0]) {       // Previous price is above EMA
+      bullishMarketNow = true;
+   }
    
    if (bullishMarketNow && !bullishMarket) {
       // Print("Market Condition changed: Not Bullish -> Bullish.");
@@ -258,50 +318,4 @@ bool isMarketTrendingBullish() {
    }
    
    return bullishMarket;
-}
-
-// TODO: Refactor and update this to signal up, down or ranging market
-bool trendIsDown() {
-   static bool trendIsDown = false;
-   bool confirmation1 = true;
-
-   if (symbolPriceData[1].high > emaData[0]) {
-      confirmation1 = false;
-   }
-
-   if (confirmation1) {
-      if (!trendIsDown && enableMarketPushNotifications) {
-         
-         string visualCueName = StringFormat("S4 signalled Bearish market at %s. \nBid price: %f. \nPrev. candle High: %f. \nEMA: %f.", (string)TimeCurrent(), latestTickPrice.bid, symbolPriceData[1].high, emaData[0]);
-         SendNotification(visualCueName);
-         
-         // Add a visual cue
-         ObjectCreate(0, visualCueName, OBJ_VLINE, 0, TimeCurrent(), symbolPriceData[1].high);
-         ObjectSetInteger(0, visualCueName, OBJPROP_COLOR, clrRed);
-         ObjectSetInteger(0, visualCueName, OBJPROP_SELECTABLE, 1);
-         ObjectSetInteger(0, visualCueName, OBJPROP_BACK, true);
-         registerChartObject(visualCueName);
-      }
-      
-      // Set these after the notification goes out
-      trendIsDown = true;
-   } else {
-      if (trendIsDown && enableMarketPushNotifications) {
-         
-         string visualCueName = StringFormat("S4 signalled NOT Bearish market at %s. \nBid price: %f. \nPrev. candle High: %f. \nEMA: %f.", (string)TimeCurrent(), latestTickPrice.bid, symbolPriceData[1].high, emaData[0]);
-         SendNotification(visualCueName);
-         
-         // Add a visual cue
-         ObjectCreate(0, visualCueName, OBJ_VLINE, 0, TimeCurrent(), symbolPriceData[1].high);
-         ObjectSetInteger(0, visualCueName, OBJPROP_COLOR, clrRed);
-         ObjectSetInteger(0, visualCueName, OBJPROP_SELECTABLE, 1);
-         ObjectSetInteger(0, visualCueName, OBJPROP_BACK, true);
-         registerChartObject(visualCueName);
-      }
-      
-      // Set these after the notification goes out
-      trendIsDown = false;
-   }
-      
-   return confirmation1;
 }

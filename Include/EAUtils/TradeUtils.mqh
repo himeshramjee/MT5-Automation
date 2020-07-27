@@ -1,6 +1,6 @@
 input group "Positioning (All strategies)";
-input double lossLimitInCurrency = 50; // Limit loss value per trade
-input int openPositionsLimit = 1; // Open Positions Limit
+input double lossLimitInCurrency = 20; // Limit loss value per trade
+input int openPositionsLimit = 3; // Open Positions Limit
 input double lotSize = 4.0;       // Lots to Trade
 
 // Order parameters
