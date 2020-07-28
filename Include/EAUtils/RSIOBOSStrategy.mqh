@@ -1,9 +1,11 @@
 input group "S2: Strategy 2 - RSI OB/OS"
 input double            s2RSISignalLevel = 78.0;            // RSI % change to trigger new order signal
 input double            s2RSITakeProfitLevel = 30.0;        // RSI % level for Take Profit
-input ENUM_TIMEFRAMES   s2EMATimeframe = PERIOD_M1;         // Chart timeframe to generate EMA data
 input bool              s2EnablePushNotification = false;   // Enable signal push notifications
 input double            s2MinimumTakeProfit = 23.0;          // Minimum required TP in currency
+
+ENUM_TIMEFRAMES s2ChartTimeframe = PERIOD_M1;
+ENUM_TIMEFRAMES s2EMATimeframe = PERIOD_M1;
 
 // RSI Indicator
 int      s2RSIIndicatorHandle;
@@ -17,7 +19,7 @@ bool     s2ConfirmSpotPrice = true;          // Open new position after confirmi
 bool initRSIOBOSIndicators() {
    //--- Get handle for RSI indicator
    // NULL and 0 are the Symbol and Timeframe values respectively and values returned are from the currently active chart
-   s2RSIIndicatorHandle = iRSI(NULL, chartTimeframe, s2RSIDataPointsToLookBackOn, PRICE_CLOSE);
+   s2RSIIndicatorHandle = iRSI(NULL, s2ChartTimeframe, s2RSIDataPointsToLookBackOn, PRICE_CLOSE);
    
    //--- What if handle returns Invalid Handle
    if(s2RSIIndicatorHandle < 0) {

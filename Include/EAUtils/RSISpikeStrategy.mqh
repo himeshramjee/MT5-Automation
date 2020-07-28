@@ -5,6 +5,8 @@ input int               s3RSIPositionOpenDelayMinutes = 0;  // Number of minutes
 input int               s3RSIPositionCloseDelayMinutes = 0; // Number of minutes to wait before closing a new position
 input bool              s3EnablePushNotification = false;   // Enable signal push notifications
 
+ENUM_TIMEFRAMES s3ChartTimeframe = PERIOD_M1;
+
 // RSI Indicator
 int      s3RSIIndicatorHandle;
 double   s3RSIData[];
@@ -17,7 +19,7 @@ bool     s3ConfirmSpotPrice = false;          // Open new position after confirm
 bool initRSISpikeIndicators() {
    //--- Get handle for RSI indicator
    // NULL and 0 are the Symbol and Timeframe values respectively and values returned are from the currently active chart
-   s3RSIIndicatorHandle = iRSI(NULL, chartTimeframe, s3RSIDataPointsToLookBackOn, PRICE_CLOSE);
+   s3RSIIndicatorHandle = iRSI(NULL, s3ChartTimeframe, s3RSIDataPointsToLookBackOn, PRICE_CLOSE);
    
    //--- What if handle returns Invalid Handle
    if(s3RSIIndicatorHandle < 0) {

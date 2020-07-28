@@ -5,6 +5,8 @@ input double s1AdxMin = 22.0;    // Minimum ADX Value
 // TODO: https://www.mql5.com/en/forum/109552/page4#comment_3049209
 input double s1TakeProfit = 100000;  // Profit (points)
 
+ENUM_TIMEFRAMES s1ChartTimeframe = PERIOD_M15;
+
 //--- Price parameters
 int s1ADXHandle; // handle for our ADX indicator
 double plsDI[],minDI[],adxVal[]; // Dynamic arrays to hold the values of +DI, -DI and ADX values for each bars
@@ -13,7 +15,7 @@ bool initTrendingIndicators() {
 
    //--- Get handle for ADX indicator
    // NULL and 0 are the Symbol and Timeframe values respectively and values returned are from the currently active chart
-   s1ADXHandle = iADX(NULL, chartTimeframe, s1ADXPeriod);
+   s1ADXHandle = iADX(NULL, s1ChartTimeframe, s1ADXPeriod);
       
    //--- What if handle returns Invalid Handle
    if(s1ADXHandle < 0) {
@@ -64,8 +66,8 @@ bool runTrendingBuyStrategy() {
          +DI > -DI
    */
    // Declare bool type variables to hold our Buy Conditions
-   bool Buy_Condition_1 = (emaData[0] > emaData[1]) && (emaData[1] > emaData[2]);  // MA-8 Increasing upwards
-   bool Buy_Condition_2 = (symbolPriceData[1].close > emaData[1]);         // previuos price closed above MA-8
+   bool Buy_Condition_1 = (candlePatterns.MA(0) > candlePatterns.MA(1)) && (candlePatterns.MA(1) > candlePatterns.MA(2));  // MA-8 Increasing upwards
+   bool Buy_Condition_2 = (symbolPriceData[1].close > candlePatterns.MA(1));         // previuos price closed above MA-8
    bool Buy_Condition_3 = (adxVal[0] > s1AdxMin);                          // Current ADX value greater than minimum value (22)
    bool Buy_Condition_4 = (plsDI[0] > minDI[0]);                           // +DI greater than -DI
 
@@ -95,8 +97,8 @@ bool runTrendingSellStrategy() {
          -DI > +DI
    */
    // Declare bool type variables to hold our Sell Conditions
-   bool Sell_Condition_1 = (emaData[0] < emaData[1]) && (emaData[1] < emaData[2]);    // MA-8 decreasing downwards
-   bool Sell_Condition_2 = (symbolPriceData[1].close < emaData[1]);           // Previous price closed below MA-8
+   bool Sell_Condition_1 = (candlePatterns.MA(0) < candlePatterns.MA(1)) && (candlePatterns.MA(1) < candlePatterns.MA(2));    // MA-8 decreasing downwards
+   bool Sell_Condition_2 = (symbolPriceData[1].close < candlePatterns.MA(1));           // Previous price closed below MA-8
    bool Sell_Condition_3 = (adxVal[0] > s1AdxMin);                            // Current ADX value greater than minimum (22)
    bool Sell_Condition_4 = (plsDI[0] < minDI[0]);                             // -DI greater than +DI
    

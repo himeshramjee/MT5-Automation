@@ -1,7 +1,6 @@
 input group "S4: Strategy 4 - Stoch & Ichimoku"
 input bool              s4EnablePushNotification = false;   // Enable signal push notifications
 input double            s4MinimumTakeProfitValue = 5.0;     // Value (in currency) at which to Take Profit
-input bool              s4TradeCrash = true;                // True to trade Crash, False to trade Boom
 
 // Stoch Indicator
 ENUM_TIMEFRAMES   s4StoChartTimeframe = PERIOD_M1;  // Chart timeframe to generate Stochastic data
@@ -146,7 +145,7 @@ bool runStochimokuSellStrategy() {
       return false;
    }
    
-   if (!s4SellCondition1SignalOn && bearishPatternsFoundCounter > 0) { // && s4StoSignalBuffer[0] >= 80) { // && s4IchKijunSenBuffer[0] >= 80) {
+   if (!s4SellCondition1SignalOn && s4StoSignalBuffer[0] >= 80) { // && s4IchKijunSenBuffer[0] >= 80) {
       // string message = StringFormat("s4StoMainBuffer[0] = %f, s4StoSignalBuffer[0] = %f, s4IchTenkanSanBuffer[0] = %f, s4IchKijunSenBuffer[0] = %f, s4IchChinkouSpanBuffer[0] = %f, s4IchSenkouSpanABuffer[0] = %f, s4IchSenkouSpanBBuffer[0] = %f.", s4StoMainBuffer[0], s4StoSignalBuffer[0], s4IchTenkanSanBuffer[0], s4IchKijunSenBuffer[0], s4IchChinkouSpanBuffer[0], s4IchSenkouSpanABuffer[0], s4IchSenkouSpanBBuffer[0]);
       // Print(message);;
 
@@ -264,9 +263,5 @@ bool runStochimokuStrategy() {
       return false;
    }
 
-   if (s4TradeCrash) {
-      return runStochimokuSellStrategy();
-   } else {
-      return runStochimokuBuyStrategy();
-   }
+   return runStochimokuBuyStrategy() && runStochimokuSellStrategy();
 }

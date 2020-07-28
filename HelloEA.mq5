@@ -20,12 +20,13 @@ enum ENUM_HELLOEA_STRATEGIES {
    EMA_ADX_MA_TRENDS = 0,     // S1: Simple Trending using EMA and ADX
    RSI_OBOS = 1,              // S2: RSI, OBOS, Shorts only
    RSI_SPIKES = 2,            // S3: RSI, Spikes, Shorts only
-   STOCH_ICHI = 3             // S4: Silent Stoch and Ichimoku
+   STOCH_ICHI = 3,             // S4: Silent Stoch and Ichimoku
+   PRICE_ACTIONS = 4             // S5: Price Actions
 };
 
 input group "Hello EA options";
-input ENUM_HELLOEA_STRATEGIES selectedEAStrategy = ENUM_HELLOEA_STRATEGIES::STOCH_ICHI;   // Selected Strategy
-input ENUM_TIMEFRAMES chartTimeframe = PERIOD_M1;                                         // Select a chart timeframe
+input ENUM_HELLOEA_STRATEGIES selectedEAStrategy = ENUM_HELLOEA_STRATEGIES::PRICE_ACTIONS;   // Selected Strategy
+input ENUM_TIMEFRAMES chartTimeframe = PERIOD_M15;                                           // Select a chart timeframe
 
 #include <Controls/Button.mqh>
 
@@ -37,20 +38,22 @@ input ENUM_TIMEFRAMES chartTimeframe = PERIOD_M1;                               
 #include <EAUtils/RSIOBOSStrategy.mqh>
 #include <EAUtils/RSISpikeStrategy.mqh>
 #include <EAUtils/StochimokuStrategy.mqh>
+#include <EAUtils/PriceActionsStrategy.mqh>
 
 int      accountLeverage = (int) AccountInfoInteger(ACCOUNT_LEVERAGE);
 string   accountCurrency = AccountInfoString(ACCOUNT_CURRENCY);
 double   accountMarginLevel = AccountInfoDouble(ACCOUNT_MARGIN_LEVEL);
 
 bool enableEATrading = true;  // True to enable bot trading, false to only signal
-bool eaInitCompleted = false;
 
 //+------------------------------------------------------------------+
 //| Expert initialization function                                   |
 //+------------------------------------------------------------------+
 int OnInit() {
-   isTraderReady();
-
+   if (!initMarketUtils()) {
+      return INIT_FAILED;
+   }
+   
    if (!initEAUtils()) {
       return INIT_FAILED;
    }
@@ -66,10 +69,6 @@ int OnInit() {
    string message;
    if(!validateOrderVolume(message)) {
       Alert(message);
-      return INIT_FAILED;
-   }
-
-   if (!initMarketUtils()) {
       return INIT_FAILED;
    }
 
@@ -92,13 +91,21 @@ int OnInit() {
       if (!initStochimokuIndicators()) {
          return INIT_FAILED;
       }
+   } else if (selectedEAStrategy == ENUM_HELLOEA_STRATEGIES::PRICE_ACTIONS) {
+      if (!initPriceActionsIndicators()) {
+         return INIT_FAILED;
+      }
    } else {
       Print("No valid trading strategy is defined. HelloEA cannot start.");
       return INIT_FAILED;
    }
    
    Print("Hello EA has successfully initialized. Running...");
-   eaInitCompleted = true;
+   
+   if (!isTraderReady()) {
+      ExpertRemove();
+   }
+   
    return INIT_SUCCEEDED;
 }
 
@@ -119,8 +126,10 @@ void OnDeinit(const int reason) {
       releaseRSISpikeIndicators();
    } else if (selectedEAStrategy == ENUM_HELLOEA_STRATEGIES::STOCH_ICHI) {
       releaseStochimokuIndicators();
+   } else if (selectedEAStrategy == ENUM_HELLOEA_STRATEGIES::PRICE_ACTIONS) {
+      releasePriceActionsIndicators();
    }
-   
+
    // FIXME: Unfortunately this makes analysing results much harder. 
    // Need to confirm that EA Exit/Remove processing will clean these up properly. Smoke/sniff tests look A-Ok.
    // At least make this user driven with a chart button.
@@ -168,6 +177,10 @@ void OnTick() {
       if (runStochimokuStrategy()) {
          sendOrder();
       }  
+   } else if (selectedEAStrategy == ENUM_HELLOEA_STRATEGIES::PRICE_ACTIONS) {
+      if (runPriceActionsStrategy()) {
+         sendOrder();
+      }  
    } else {
       Print("Hello EA found no valid selected strategy.");
    }   
@@ -185,7 +198,6 @@ bool isTraderReady() {
    }
 
    Print("Welcome to Hello EA!");
-   Print("Selected chart timeframe is ", chartTimeframe);
    Print("HelloEA trades are ", (enableEATrading ? "Enabled." : "Disabled."));
    
    return true;
