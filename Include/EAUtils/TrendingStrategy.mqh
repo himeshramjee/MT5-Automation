@@ -126,9 +126,13 @@ bool runTrendingStrategy() {
       return false;
    }
    
-   bool placeBuyOrder = runTrendingBuyStrategy();
+   if (runTrendingBuyStrategy()) {
+      return true;
+   }
    
-   bool placeSellOrder = runTrendingSellStrategy();
+   if (runTrendingSellStrategy()) {
+      return true;
+   }
 
-   return placeBuyOrder || placeSellOrder;
+   return false;
 }

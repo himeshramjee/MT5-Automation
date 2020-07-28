@@ -260,7 +260,7 @@ void highlightPriceActionPattern(string name, datetime time, double price, int c
       ObjectSetInteger(signalsChartID, visualCueUniqueName, OBJPROP_FONTSIZE, 10);
       ObjectSetDouble(signalsChartID, visualCueUniqueName, OBJPROP_ANGLE, 90.0);      // rotation is clockwise if negative
 
-      ObjectSetInteger(signalsChartID, visualCueUniqueName, OBJPROP_ANCHOR, ANCHOR_BOTTOM);      
+      ObjectSetInteger(signalsChartID, visualCueUniqueName, OBJPROP_ANCHOR, colour == clrRed ? ANCHOR_BOTTOM : ANCHOR_TOP);      
       ObjectSetInteger(signalsChartID, visualCueUniqueName, OBJPROP_SELECTABLE, true);
       
       registerChartObject(visualCueUniqueName);
@@ -312,7 +312,7 @@ bool isBearishMarket() {
    if (symbolPriceData[1].open > symbolPriceData[1].close         // Previous candle was Bearish
          && latestTickPrice.bid < symbolPriceData[1].close        // Current price is lower than previous close
          && symbolPriceData[1].close  < candlePatterns.MA(0)) {   // Previous price is below EMA
-      bearishMarket = true;
+      bearishMarketNow = true;
    }
    
    if (bearishMarketNow && !bearishMarket) {

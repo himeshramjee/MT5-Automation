@@ -23,11 +23,15 @@ bool runS5SellStrategy() {
    static datetime s5SellCondition1TimeAtSignal;
    static double s5SellConditionPriceAtSignal;
    
-   if (bearishPatternsFoundCounter == 0 || !isBearishMarket()) {
+   if (!isBearishMarket()) {
       return false;
    }
    
-   if (!s5SellCondition1SignalOn && bearishPatternsFoundCounter > 0) {
+   if (bearishPatternsFoundCounter == 0) {
+      return false;
+   }
+   
+   if (!s5SellCondition1SignalOn) {
       s5SellCondition1SignalOn = true;
       s5SellCondition1TimeAtSignal = TimeCurrent();
       s5SellConditionPriceAtSignal = latestTickPrice.bid;
@@ -65,11 +69,15 @@ bool runS5BuyStrategy() {
    static datetime s5BuyCondition1TimeAtSignal;
    static double s5BuyConditionPriceAtSignal;
    
-   if (bullishPatternsFoundCounter == 0 || !isBullishMarket()) {
+   if (!isBullishMarket()) {
       return false;
    }
-      
-   if (!s5BuyCondition1SignalOn && bullishPatternsFoundCounter > 0) {
+   
+   if (bullishPatternsFoundCounter == 0) {
+      return false;
+   }
+   
+   if (!s5BuyCondition1SignalOn) {
       s5BuyCondition1SignalOn = true;
       s5BuyCondition1TimeAtSignal = TimeCurrent();
       s5BuyConditionPriceAtSignal = latestTickPrice.ask;
@@ -142,5 +150,13 @@ bool runPriceActionsStrategy() {
       return false;
    }
 
-   return runS5BuyStrategy() && runS5SellStrategy();
+   if (runS5BuyStrategy()){
+      return true;
+   }
+   
+   if (runS5SellStrategy()){
+      return true;
+   }
+   
+   return false;
 }

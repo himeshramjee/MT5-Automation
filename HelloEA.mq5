@@ -219,9 +219,11 @@ void printAccountInfo(){
    
    string                     accountInfoMessage = StringFormat("Active account is %s. Account leverage: %f. Currency: %s. Balance: %f. Floating P/L: %f. Equity: %f. Free Margin: %f. Initial Margin: %f. Margin Maintenance: %f.", accountName, accountLeverage, accountCurrency, accountInitialBalance, accountFloatingProftLoss, accountInitialEquity, accountFreeMargin, accountMarginInitial, accountMarginMaintenance);
    string                     marginInfoMessage = StringFormat("Brokers Margin call settings for account: SO Mode: %s. Level: %f%. SO Call: %f. SO SO: %f.", EnumToString(accountMarginSOMode), accountMarginLevel, accountMarginSOCall, accountMarginSOSO);
-   
    Print(accountInfoMessage);
    Print(marginInfoMessage);
+   
+   PrintFormat("A total of %d Sell orders and %d Buy orders were placed.", totalSellOrderCount, totalBuyOrderCount);
+   
    PrintFormat("Max used margin was %f %s. Max floating loss was %f %s. Orders missed due to insufficient margin was %d.", maxUsedMargin, accountCurrency, maxFloatingLoss, accountCurrency, insufficientMarginCount);
    PrintFormat("Closed %d positions that were above loss limit value of %f %s. There are currently %d open positions.", lossLimitPositionsClosedCount, lossLimitInCurrency, accountCurrency, PositionsTotal());
 }

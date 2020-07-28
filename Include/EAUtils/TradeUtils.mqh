@@ -12,6 +12,8 @@ int lossLimitPositionsClosedCount = 0;
 double maxUsedMargin = 0.0;
 double maxFloatingLoss = 0.0;
 int insufficientMarginCount = 0;
+int totalSellOrderCount = 0;
+int totalBuyOrderCount = 0;
 
 bool accountHasSufficientMargin(string symb, double lots, ENUM_ORDER_TYPE type) {
    double price = latestTickPrice.ask;
@@ -250,6 +252,13 @@ bool sendOrder() {
       // Request is completed or order placed 
       if(mTradeResult.retcode == 10009 || mTradeResult.retcode == 10008) {
          Print("A new order has been successfully placed with Ticket#:", mTradeResult.order, ". ");
+         
+         if (mTradeRequest.type == ORDER_TYPE_SELL) {
+            totalSellOrderCount++;
+         } else if (mTradeRequest.type == ORDER_TYPE_BUY) {
+            totalBuyOrderCount++;
+         }
+         
          return true;
       } else {
          Print("Unexpected Order result code. New order may not have been created. mTradeResult.retcode is: ", mTradeResult.retcode, ".");
