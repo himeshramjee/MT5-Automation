@@ -126,7 +126,7 @@ void closeS5ITMPositions() {
       if (magic == EAMagic) {
          if (positionType == POSITION_TYPE_SELL) {
             if(profitLoss >= s5MinimumTakeProfitValue) {
-               PrintFormat("Close profitable position - %s, Ticket: %d. Symbol: %s. Profit/Loss: %f.", EnumToString(positionType), ticket, symbol, profitLoss);
+               PrintFormat("Close profitable position for %s - %s, Ticket: %d. Symbol: %s. Profit/Loss: %f.", _Symbol, EnumToString(positionType), ticket, symbol, profitLoss);
                
                closePosition(magic, ticket, symbol, positionType, volume, "s5 profit conditions.", true);
             } else {

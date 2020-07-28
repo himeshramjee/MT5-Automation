@@ -272,7 +272,7 @@ void highlightPriceActionPattern(string name, datetime time, double price, int c
 }
 
 bool checkMarketConditions() {
-   string marketConditionComment = StringFormat("Market trend is %s and %s.", isBearishMarket() ? "bearish" : "not bearish", isBullishMarket() ? "bullish" : "not bullish");
+   string marketConditionComment = StringFormat("%s trend is %s and %s.", _Symbol, isBearishMarket() ? "bearish" : "not bearish", isBullishMarket() ? "bullish" : "not bullish");
    Comment(marketConditionComment);
    
    return true;
@@ -319,7 +319,7 @@ bool isBearishMarket() {
       // Print("Market Condition changed: Not Bearish -> Bearish.");
       bearishMarket = true;
       
-      string visualCueUniqueName = StringFormat("Market is Bearish at %s. \nBid price: %f. \nPrev. candle Close: %f. \nEMA: %f.", (string)TimeCurrent(), latestTickPrice.bid, symbolPriceData[1].close, candlePatterns.MA(0));
+      string visualCueUniqueName = StringFormat("%s is Bearish at %s. \nBid price: %f. \nPrev. candle Close: %f. \nEMA: %f.", _Symbol, (string)TimeCurrent(), latestTickPrice.bid, symbolPriceData[1].close, candlePatterns.MA(0));
       enableMarketPushNotifications ? SendNotification(visualCueUniqueName) : 0;
       // Add a visual cue
       highlightMarketCondition(visualCueUniqueName, OBJ_ARROW, symbolPriceData[1].high /*+ (visualObjectOffsetValue * Point())*/, "Open: Bearish", 90.0, ANCHOR_TOP, clrRed);
@@ -328,7 +328,7 @@ bool isBearishMarket() {
       // Print("Market Condition changed: Bearish -> Not Bearish.");
       bearishMarket = false;
       
-      string visualCueUniqueName = StringFormat("Market no longer bearish at %s. \nAsk price: %f. \nPrev. candle Close: %f. \nEMA: %f.", (string)TimeCurrent(), latestTickPrice.ask, symbolPriceData[1].close, candlePatterns.MA(0));
+      string visualCueUniqueName = StringFormat("%s no longer bearish at %s. \nAsk price: %f. \nPrev. candle Close: %f. \nEMA: %f.", _Symbol, (string)TimeCurrent(), latestTickPrice.ask, symbolPriceData[1].close, candlePatterns.MA(0));
       enableMarketPushNotifications ? SendNotification(visualCueUniqueName) : 0; 
       // Add a visual cue
       highlightMarketCondition(visualCueUniqueName, OBJ_ARROW, symbolPriceData[1].low /*- (visualObjectOffsetValue * Point())*/, "Close: Bearish", 270.0, ANCHOR_TOP, clrBlack);
@@ -351,7 +351,7 @@ bool isBullishMarket() {
       // Print("Market Condition changed: Not Bullish -> Bullish.");
       bullishMarket = true;
       
-      string visualCueUniqueName = StringFormat("Market is Bullish at %s. \nAsk price: %f. \nPrev. candle Close: %f. \nEMA: %f.", (string)TimeCurrent(), latestTickPrice.ask, symbolPriceData[1].close, candlePatterns.MA(0));
+      string visualCueUniqueName = StringFormat("%s is Bullish at %s. \nAsk price: %f. \nPrev. candle Close: %f. \nEMA: %f.", _Symbol, (string)TimeCurrent(), latestTickPrice.ask, symbolPriceData[1].close, candlePatterns.MA(0));
       enableMarketPushNotifications ? SendNotification(visualCueUniqueName) : 0;
       // Add a visual cue
       highlightMarketCondition(visualCueUniqueName, OBJ_ARROW, symbolPriceData[1].high /*+ (visualObjectOffsetValue * Point())*/, "Open: Bullish", 90.0, ANCHOR_TOP, clrBlue);
@@ -360,7 +360,7 @@ bool isBullishMarket() {
       // Print("Market Condition changed: Bullish -> Not Bullish.");
       bullishMarket = false;
       
-      string visualCueUniqueName = StringFormat("Market no longer bullish at %s. \nAsk price: %f. \nPrev. candle Close: %f. \nEMA: %f.", (string)TimeCurrent(), latestTickPrice.ask, symbolPriceData[1].close, candlePatterns.MA(0));
+      string visualCueUniqueName = StringFormat("%s no longer bullish at %s. \nAsk price: %f. \nPrev. candle Close: %f. \nEMA: %f.", _Symbol, (string)TimeCurrent(), latestTickPrice.ask, symbolPriceData[1].close, candlePatterns.MA(0));
       enableMarketPushNotifications ? SendNotification(visualCueUniqueName) : 0;
       // Add a visual cue
       highlightMarketCondition(visualCueUniqueName, OBJ_ARROW, symbolPriceData[1].low /*- (visualObjectOffsetValue * Point())*/, "Close: Bullish", 270.0, ANCHOR_TOP, clrBlack);
