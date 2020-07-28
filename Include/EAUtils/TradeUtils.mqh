@@ -1,7 +1,7 @@
 input group "Positioning (All strategies)";
-input double lossLimitInCurrency = 20; // Limit loss value per trade
-input int openPositionsLimit = 3; // Open Positions Limit
-input double lotSize = 4.0;       // Lots to Trade
+input double percentageLossLimit = 10; // Loss limit per trade. e.g. 1 % of equity
+input int openPositionsLimit = 3;        // Open Positions Limit
+input double lotSize = 4.0;              // Lots to Trade
 
 // Order parameters
 MqlTradeRequest mTradeRequest;   // To be used for sending our trade requests
@@ -149,9 +149,13 @@ void closePositionsAboveLossLimit() {
       ENUM_POSITION_TYPE positionType = (ENUM_POSITION_TYPE) PositionGetInteger(POSITION_TYPE);
       commentToAppend = "Limiting loss position.";
 
-      if(profitLoss <= (lossLimitInCurrency * -1)) {
+      double accountEquity = AccountInfoDouble(ACCOUNT_EQUITY);
+      double lossThreshold = accountEquity * (percentageLossLimit / 100);
+      
+      // FIXME: Not accounting for slippage
+      if(profitLoss < 0 && profitLoss <= (lossThreshold * -1)) {
          // Loss is over user set limit so close the position
-         PrintFormat("Closing loss position - %s, Ticket: %d. Symbol: %s. Profit/Loss: %f <= %f", EnumToString(positionType), ticket, symbol, profitLoss, lossLimitInCurrency * -1);
+         PrintFormat("Closing loss position - %s, Ticket: %d. Symbol: %s. Profit/Loss: %f <= %f", EnumToString(positionType), ticket, symbol, profitLoss, percentageLossLimit);
          
          closePosition(magic, ticket, symbol, positionType, volume, commentToAppend, false);
          lossLimitPositionsClosedCount++;

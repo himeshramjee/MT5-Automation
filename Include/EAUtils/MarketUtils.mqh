@@ -319,7 +319,7 @@ bool isBearishMarket() {
       // Print("Market Condition changed: Not Bearish -> Bearish.");
       bearishMarket = true;
       
-      string visualCueUniqueName = StringFormat("S4 signalled Bearish market at %s. \nBid price: %f. \nPrev. candle Close: %f. \nEMA: %f.", (string)TimeCurrent(), latestTickPrice.bid, symbolPriceData[1].close, candlePatterns.MA(0));
+      string visualCueUniqueName = StringFormat("Market is Bearish at %s. \nBid price: %f. \nPrev. candle Close: %f. \nEMA: %f.", (string)TimeCurrent(), latestTickPrice.bid, symbolPriceData[1].close, candlePatterns.MA(0));
       enableMarketPushNotifications ? SendNotification(visualCueUniqueName) : 0;
       // Add a visual cue
       highlightMarketCondition(visualCueUniqueName, OBJ_ARROW, symbolPriceData[1].high /*+ (visualObjectOffsetValue * Point())*/, "Open: Bearish", 90.0, ANCHOR_TOP, clrRed);
@@ -328,7 +328,7 @@ bool isBearishMarket() {
       // Print("Market Condition changed: Bearish -> Not Bearish.");
       bearishMarket = false;
       
-      string visualCueUniqueName = StringFormat("S4 signalled market no longer bearish at %s. \nAsk price: %f. \nPrev. candle Close: %f. \nEMA: %f.", (string)TimeCurrent(), latestTickPrice.ask, symbolPriceData[1].close, candlePatterns.MA(0));
+      string visualCueUniqueName = StringFormat("Market no longer bearish at %s. \nAsk price: %f. \nPrev. candle Close: %f. \nEMA: %f.", (string)TimeCurrent(), latestTickPrice.ask, symbolPriceData[1].close, candlePatterns.MA(0));
       enableMarketPushNotifications ? SendNotification(visualCueUniqueName) : 0; 
       // Add a visual cue
       highlightMarketCondition(visualCueUniqueName, OBJ_ARROW, symbolPriceData[1].low /*- (visualObjectOffsetValue * Point())*/, "Close: Bearish", 270.0, ANCHOR_TOP, clrBlack);
@@ -351,7 +351,7 @@ bool isBullishMarket() {
       // Print("Market Condition changed: Not Bullish -> Bullish.");
       bullishMarket = true;
       
-      string visualCueUniqueName = StringFormat("S4 signalled Bullish market at %s. \nAsk price: %f. \nPrev. candle Close: %f. \nEMA: %f.", (string)TimeCurrent(), latestTickPrice.ask, symbolPriceData[1].close, candlePatterns.MA(0));
+      string visualCueUniqueName = StringFormat("Market is Bullish at %s. \nAsk price: %f. \nPrev. candle Close: %f. \nEMA: %f.", (string)TimeCurrent(), latestTickPrice.ask, symbolPriceData[1].close, candlePatterns.MA(0));
       enableMarketPushNotifications ? SendNotification(visualCueUniqueName) : 0;
       // Add a visual cue
       highlightMarketCondition(visualCueUniqueName, OBJ_ARROW, symbolPriceData[1].high /*+ (visualObjectOffsetValue * Point())*/, "Open: Bullish", 90.0, ANCHOR_TOP, clrBlue);
@@ -360,7 +360,7 @@ bool isBullishMarket() {
       // Print("Market Condition changed: Bullish -> Not Bullish.");
       bullishMarket = false;
       
-      string visualCueUniqueName = StringFormat("S4 signalled market no longer bullish at %s. \nAsk price: %f. \nPrev. candle Close: %f. \nEMA: %f.", (string)TimeCurrent(), latestTickPrice.ask, symbolPriceData[1].close, candlePatterns.MA(0));
+      string visualCueUniqueName = StringFormat("Market no longer bullish at %s. \nAsk price: %f. \nPrev. candle Close: %f. \nEMA: %f.", (string)TimeCurrent(), latestTickPrice.ask, symbolPriceData[1].close, candlePatterns.MA(0));
       enableMarketPushNotifications ? SendNotification(visualCueUniqueName) : 0;
       // Add a visual cue
       highlightMarketCondition(visualCueUniqueName, OBJ_ARROW, symbolPriceData[1].low /*- (visualObjectOffsetValue * Point())*/, "Close: Bullish", 270.0, ANCHOR_TOP, clrBlack);

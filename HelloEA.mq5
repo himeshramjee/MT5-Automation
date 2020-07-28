@@ -1,18 +1,7 @@
-//+------------------------------------------------------------------+
-//|                                                      HelloEA.mq5 |
-//| GitHub: https://github.com/himeshramjee/MT5-Automation/tree/master
-//| Code based on following guides:
-//| https://www.mql5.com/en/articles/100
-//| https://www.mql5.com/en/articles/2555
-//| https://www.mql5.com/en/docs/constants/errorswarnings/errorcodes
-//| https://www.mql5.com/en/docs/constants/environment_state/marketinfoconstants
-//| https://www.mql5.com/en/docs/convert/stringformat
-//| https://www.mql5.com/en/forum/137301#comment_3474196
-//| https://www.mql5.com/en/docs/constants/tradingconstants/enum_trade_request_actions
-//| https://www.mql5.com/en/forum/192909#comment_5070465
-//| https://www.mql5.com/en/docs/objects/objectcreate
-//| https://www.mql5.com/en/docs/event_handlers/ontick
-//+------------------------------------------------------------------+
+//+-------------------------------------------------------------------+
+//|                                                      HelloEA.mq5  |
+//| GitHub: https://github.com/himeshramjee/MT5-Automation/tree/master|
+//+-------------------------------------------------------------------+
 
 // #property indicator_separate_window
 
@@ -138,7 +127,7 @@ void OnDeinit(const int reason) {
    deInitMarketUtils();
    
    // Print stats
-   printAccountInfo();
+   printExitSummary();
    
    Print("Hello EA is stopped.");
 }
@@ -203,7 +192,8 @@ bool isTraderReady() {
    return true;
 }
 
-void printAccountInfo(){
+void printExitSummary(){
+   /*
    string                     accountName = AccountInfoString(ACCOUNT_NAME);
 
    double                     accountInitialBalance = NormalizeDouble(AccountInfoDouble(ACCOUNT_BALANCE), 2);
@@ -221,9 +211,9 @@ void printAccountInfo(){
    string                     marginInfoMessage = StringFormat("Brokers Margin call settings for account: SO Mode: %s. Level: %f%. SO Call: %f. SO SO: %f.", EnumToString(accountMarginSOMode), accountMarginLevel, accountMarginSOCall, accountMarginSOSO);
    Print(accountInfoMessage);
    Print(marginInfoMessage);
+   */
    
    PrintFormat("A total of %d Sell orders and %d Buy orders were placed.", totalSellOrderCount, totalBuyOrderCount);
-   
+   PrintFormat("Closed %d positions that were above loss limit threshold of %.2f%% of Account Equity per trade. There are currently %d open positions.", lossLimitPositionsClosedCount, percentageLossLimit, PositionsTotal());
    PrintFormat("Max used margin was %f %s. Max floating loss was %f %s. Orders missed due to insufficient margin was %d.", maxUsedMargin, accountCurrency, maxFloatingLoss, accountCurrency, insufficientMarginCount);
-   PrintFormat("Closed %d positions that were above loss limit value of %f %s. There are currently %d open positions.", lossLimitPositionsClosedCount, lossLimitInCurrency, accountCurrency, PositionsTotal());
 }

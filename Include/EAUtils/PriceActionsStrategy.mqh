@@ -1,5 +1,4 @@
 input group "S5: Strategy 5 - Price Actions"
-input bool              s5EnablePushNotification = false;   // Enable signal push notifications
 input double            s5MinimumTakeProfitValue = 5.0;     // Value (in currency) at which to Take Profit
 
 bool initPriceActionsIndicators() {
