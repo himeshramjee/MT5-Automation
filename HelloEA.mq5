@@ -15,7 +15,6 @@ enum ENUM_HELLOEA_STRATEGIES {
 
 input group "Hello EA options";
 input ENUM_HELLOEA_STRATEGIES selectedEAStrategy = ENUM_HELLOEA_STRATEGIES::PRICE_ACTIONS;   // Selected Strategy
-input ENUM_TIMEFRAMES chartTimeframe = PERIOD_M15;                                           // Select a chart timeframe
 
 #include <Controls/Button.mqh>
 

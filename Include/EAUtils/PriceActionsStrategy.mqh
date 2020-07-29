@@ -1,5 +1,6 @@
 input group "S5: Strategy 5 - Price Actions"
-input double            s5MinimumTakeProfitValue = 5.0;     // Value (in currency) at which to Take Profit
+input double   s5MinimumTakeProfitValue = 5.0;     // Value (in currency) at which to Take Profit
+input bool     s5TradeWithTrendOnly = false;       // True if new positions must follow trend direction
 
 bool initPriceActionsIndicators() {
    // Everything provided by MarketUtils.mqh
@@ -22,8 +23,8 @@ bool runS5SellStrategy() {
    static datetime s5SellCondition1TimeAtSignal;
    static double s5SellConditionPriceAtSignal;
    
-   if (!isBearishMarket()) {
-      // return false;
+   if (s5TradeWithTrendOnly && !isBearishMarket()) {
+      return false;
    }
    
    if (bearishPatternsFoundCounter == 0) {
@@ -66,8 +67,8 @@ bool runS5BuyStrategy() {
    static datetime s5BuyCondition1TimeAtSignal;
    static double s5BuyConditionPriceAtSignal;
    
-   if (!isBullishMarket()) {
-      // return false;
+   if (s5TradeWithTrendOnly && !isBullishMarket()) {
+      return false;
    }
    
    if (bullishPatternsFoundCounter == 0) {
