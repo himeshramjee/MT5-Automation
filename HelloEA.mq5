@@ -152,23 +152,23 @@ void OnTick() {
    
    if (selectedEAStrategy == ENUM_HELLOEA_STRATEGIES::EMA_ADX_MA_TRENDS) {
       if (runTrendingStrategy()) {
-         sendOrder();
+         sendOrder(false);
       }  
    } else if (selectedEAStrategy == ENUM_HELLOEA_STRATEGIES::RSI_OBOS) {
       if (runRSIOBOSStrategy()) {
-         sendOrder();
+         sendOrder(false);
       }  
    } else if (selectedEAStrategy == ENUM_HELLOEA_STRATEGIES::RSI_SPIKES) {
       if (runRSISpikeStrategy()) {
-         sendOrder();
+         sendOrder(false);
       }  
    } else if (selectedEAStrategy == ENUM_HELLOEA_STRATEGIES::STOCH_ICHI) {
       if (runStochimokuStrategy()) {
-         sendOrder();
+         sendOrder(false);
       }  
    } else if (selectedEAStrategy == ENUM_HELLOEA_STRATEGIES::PRICE_ACTIONS) {
       if (runPriceActionsStrategy()) {
-         sendOrder();
+         sendOrder(false);
       }  
    } else {
       Print("Hello EA found no valid selected strategy.");

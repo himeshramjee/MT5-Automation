@@ -190,7 +190,6 @@ bool closePosition(ulong magic, ulong ticket, string symbol, ENUM_POSITION_TYPE 
    mTradeRequest.position = ticket;          // ticket of the position
    mTradeRequest.symbol = symbol;          // symbol 
    mTradeRequest.volume = volume;                   // volume of the position
-   mTradeRequest.deviation = 5;                        // allowed deviation from the price"
    mTradeRequest.comment = mTradeRequest.comment + commentToAppend;
          
    //--- set the price and order type depending on the position type
@@ -202,7 +201,7 @@ bool closePosition(ulong magic, ulong ticket, string symbol, ENUM_POSITION_TYPE 
       mTradeRequest.type = ORDER_TYPE_BUY;
    }
    
-   if(!sendOrder()) {
+   if(!sendOrder(true)) {
       return false;
    }
    
@@ -231,12 +230,11 @@ void setupGenericTradeRequest() {
    mTradeRequest.volume = lotSize;                                                  // number of lots to trade
    mTradeRequest.magic = EAMagic;                                              // Order Magic Number
    mTradeRequest.type_filling = getOrderFillMode();
-   mTradeRequest.deviation = 5;                                                 // Deviation from current price
+   mTradeRequest.deviation = 100;                                                 // Deviation from current price
    mTradeRequest.type = NULL;
-   // mTradeRequest.comment = "HelloEA:";
 }
 
-bool sendOrder() {
+bool sendOrder(bool isClosingOrder) {
    if (!enableEATrading) {
       return false;
    }
@@ -257,10 +255,12 @@ bool sendOrder() {
       if(mTradeResult.retcode == 10009 || mTradeResult.retcode == 10008) {
          Print("A new order has been successfully placed with Ticket#:", mTradeResult.order, ". ");
          
-         if (mTradeRequest.type == ORDER_TYPE_SELL) {
-            totalSellOrderCount++;
-         } else if (mTradeRequest.type == ORDER_TYPE_BUY) {
-            totalBuyOrderCount++;
+         if (!isClosingOrder) {
+            if (mTradeRequest.type == ORDER_TYPE_SELL) {
+               totalSellOrderCount++;
+            } else if (mTradeRequest.type == ORDER_TYPE_BUY) {
+               totalBuyOrderCount++;
+            }
          }
          
          return true;
@@ -268,7 +268,7 @@ bool sendOrder() {
          Print("Unexpected Order result code. New order may not have been created. mTradeResult.retcode is: ", mTradeResult.retcode, ".");
       }
    } else {
-      PrintFormat("New order request could not be completed. Ticket#: %d. Error: %d. Result comment: %s. Return code: %s.", mTradeRequest.order, GetLastError(), mTradeResult.comment, mTradeResult.retcode);
+      PrintFormat("New order request could not be completed. Ticket#: %d. Error: %d. Result comment: %s. Return code: %d.", mTradeRequest.order, GetLastError(), mTradeResult.comment, mTradeResult.retcode);
       ResetLastError();
    }
    

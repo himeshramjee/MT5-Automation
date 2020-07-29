@@ -23,7 +23,7 @@ bool runS5SellStrategy() {
    static double s5SellConditionPriceAtSignal;
    
    if (!isBearishMarket()) {
-      return false;
+      // return false;
    }
    
    if (bearishPatternsFoundCounter == 0) {
@@ -69,7 +69,7 @@ bool runS5BuyStrategy() {
    static double s5BuyConditionPriceAtSignal;
    
    if (!isBullishMarket()) {
-      return false;
+      // return false;
    }
    
    if (bullishPatternsFoundCounter == 0) {
@@ -123,17 +123,23 @@ void closeS5ITMPositions() {
       double volume = PositionGetDouble(POSITION_VOLUME);
       
       // Only act on positions opened by this EA
-      if (magic == EAMagic) {
-         if (positionType == POSITION_TYPE_SELL) {
-            if(profitLoss >= s5MinimumTakeProfitValue) {
-               PrintFormat("Close profitable position for %s - %s, Ticket: %d. Symbol: %s. Profit/Loss: %f.", _Symbol, EnumToString(positionType), ticket, symbol, profitLoss);
-               
-               closePosition(magic, ticket, symbol, positionType, volume, "s5 profit conditions.", true);
-            } else {
-               // wait bit longer
-               return;
-            }
-         }
+      if (magic != EAMagic) {
+         PrintFormat("WARN: Unexpected magic number %d for position type %s for ticket %d and symbol %s.", magic, EnumToString(positionType), ticket, _Symbol);
+         continue;
+      }
+      
+      if (positionType != POSITION_TYPE_SELL && positionType != POSITION_TYPE_BUY) {
+         PrintFormat("WARN: Unexpected position type %s for ticket %d and symbol %s.", EnumToString(positionType), ticket, _Symbol);
+         continue;
+      }
+      
+      if(profitLoss >= s5MinimumTakeProfitValue) {
+         PrintFormat("Close profitable position for %s - %s, Ticket: %d. Symbol: %s. Profit/Loss: %f.", _Symbol, EnumToString(positionType), ticket, symbol, profitLoss);
+         
+         closePosition(magic, ticket, symbol, positionType, volume, "s5 profit conditions.", true);
+      } else {
+         // wait bit longer
+         // PrintFormat("Profitable position for %s has not reached minimum TP value of %f - %s, Ticket: %d. Symbol: %s. Profit/Loss: %f.", _Symbol, s5MinimumTakeProfitValue, EnumToString(positionType), ticket, symbol, profitLoss);
       }
    }
 }
