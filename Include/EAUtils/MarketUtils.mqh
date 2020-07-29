@@ -20,7 +20,7 @@ static int bullishPatternsFoundCounter;
 bool initMarketUtils() {
    // Grab the handle to the chart that the EA was dropped onto
    // ChartGetInteger(0, CHART_WINDOW_HANDLE, 0, signalsChartID);
-   Print("Signals Chart ID is: ", dashboardChartID);
+   // Print("Signals Chart ID is: ", dashboardChartID);
    
    symbolInfo = new CSymbolInfo;
    symbolInfo.Name(_Symbol);

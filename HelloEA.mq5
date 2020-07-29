@@ -213,7 +213,7 @@ void printExitSummary(){
    Print(marginInfoMessage);
    */
    
-   PrintFormat("A total of %d Sell orders and %d Buy orders were placed.", totalSellOrderCount, totalBuyOrderCount);
+   PrintFormat("A total of %d orders failed to be placed. A total of %d Sell orders and %d Buy orders were placed.", totalFailedOrderCount, totalSellOrderCount, totalBuyOrderCount);
    PrintFormat("Closed %d positions that were above loss limit threshold of %.2f%% of Account Equity per trade. There are currently %d open positions.", lossLimitPositionsClosedCount, percentageLossLimit, PositionsTotal());
    PrintFormat("Max used margin was %f %s. Max floating loss was %f %s. Orders missed due to insufficient margin was %d.", maxUsedMargin, accountCurrency, maxFloatingLoss, accountCurrency, insufficientMarginCount);
 }

@@ -14,6 +14,7 @@ double maxFloatingLoss = 0.0;
 int insufficientMarginCount = 0;
 int totalSellOrderCount = 0;
 int totalBuyOrderCount = 0;
+int totalFailedOrderCount = 0;
 
 bool accountHasSufficientMargin(string symb, double lots, ENUM_ORDER_TYPE type) {
    double price = latestTickPrice.ask;
@@ -196,9 +197,12 @@ bool closePosition(ulong magic, ulong ticket, string symbol, ENUM_POSITION_TYPE 
    if(positionType == POSITION_TYPE_BUY) {
       mTradeRequest.price = SymbolInfoDouble(symbol,SYMBOL_BID);
       mTradeRequest.type = ORDER_TYPE_SELL;
-   } else {
+   } else if (positionType == POSITION_TYPE_SELL) {
       mTradeRequest.price = SymbolInfoDouble(symbol,SYMBOL_ASK);
       mTradeRequest.type = ORDER_TYPE_BUY;
+   } else {
+      PrintFormat("Error: Unexpected position type %s for ticket %d and symbol %s.", EnumToString(positionType), ticket, symbol);
+      return false;
    }
    
    if(!sendOrder(true)) {
@@ -230,7 +234,7 @@ void setupGenericTradeRequest() {
    mTradeRequest.volume = lotSize;                                                  // number of lots to trade
    mTradeRequest.magic = EAMagic;                                              // Order Magic Number
    mTradeRequest.type_filling = getOrderFillMode();
-   mTradeRequest.deviation = 100;                                                 // Deviation from current price
+   // mTradeRequest.deviation = 5;                                                 // Deviation from current price
    mTradeRequest.type = NULL;
 }
 
@@ -247,6 +251,16 @@ bool sendOrder(bool isClosingOrder) {
 
    if (mTradeRequest.magic != EAMagic) {
       PrintFormat("EA Magic number mismatch. Send order request rejected. Expected %d but got %d.", mTradeRequest.magic, EAMagic);
+      totalFailedOrderCount++;
+   }
+   
+   MqlTradeCheckResult mTradeCheckResult;
+   ZeroMemory(mTradeCheckResult);
+   
+   if (!OrderCheck(mTradeRequest, mTradeCheckResult)) {
+      PrintFormat("New%s order checks failed. Ticket#: %d. Error: %d. Result comment: %s. Return code: %d.", isClosingOrder ? " close" : "", mTradeRequest.order, GetLastError(), mTradeCheckResult.comment, mTradeCheckResult.retcode);
+      totalFailedOrderCount++;
+      return false;
    }
    
    if (OrderSend(mTradeRequest, mTradeResult)) {
@@ -265,10 +279,12 @@ bool sendOrder(bool isClosingOrder) {
          
          return true;
       } else {
-         Print("Unexpected Order result code. New order may not have been created. mTradeResult.retcode is: ", mTradeResult.retcode, ".");
+         Print("Unexpected Order result code. New%s order may not have been created. mTradeResult.retcode is: ", isClosingOrder ? " CLOSE" : "", mTradeResult.retcode, ".");
+         totalFailedOrderCount++;
       }
    } else {
-      PrintFormat("New order request could not be completed. Ticket#: %d. Error: %d. Result comment: %s. Return code: %d.", mTradeRequest.order, GetLastError(), mTradeResult.comment, mTradeResult.retcode);
+      PrintFormat("New%s order request could not be completed. Ticket#: %d. Error: %d. Result comment: %s. Return code: %d.", isClosingOrder ? " CLOSE" : "", mTradeRequest.order, GetLastError(), mTradeResult.comment, mTradeResult.retcode);
+      totalFailedOrderCount++;
       ResetLastError();
    }
    

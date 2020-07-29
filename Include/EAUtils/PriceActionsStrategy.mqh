@@ -62,8 +62,6 @@ bool runS5SellStrategy() {
 }
 
 bool runS5BuyStrategy() {
-   return false;
-   
    static bool s5BuyCondition1SignalOn;
    static datetime s5BuyCondition1TimeAtSignal;
    static double s5BuyConditionPriceAtSignal;
@@ -114,25 +112,13 @@ void closeS5ITMPositions() {
    int openPositionCount = PositionsTotal(); // number of open positions
    
    for (int i = 0; i < openPositionCount; i++) {
+      ulong ticket = PositionGetTicket(i); // This method selects the required position which makes the subsequent calls apply to the expected position. Something like a global pointer to the current record being queried.
       ENUM_POSITION_TYPE positionType = (ENUM_POSITION_TYPE) PositionGetInteger(POSITION_TYPE);
-
-      ulong ticket = PositionGetTicket(i);
       string symbol = PositionGetSymbol(i);
       double profitLoss = PositionGetDouble(POSITION_PROFIT);
       ulong  magic = PositionGetInteger(POSITION_MAGIC);
       double volume = PositionGetDouble(POSITION_VOLUME);
-      
-      // Only act on positions opened by this EA
-      if (magic != EAMagic) {
-         PrintFormat("WARN: Unexpected magic number %d for position type %s for ticket %d and symbol %s.", magic, EnumToString(positionType), ticket, _Symbol);
-         continue;
-      }
-      
-      if (positionType != POSITION_TYPE_SELL && positionType != POSITION_TYPE_BUY) {
-         PrintFormat("WARN: Unexpected position type %s for ticket %d and symbol %s.", EnumToString(positionType), ticket, _Symbol);
-         continue;
-      }
-      
+            
       if(profitLoss >= s5MinimumTakeProfitValue) {
          PrintFormat("Close profitable position for %s - %s, Ticket: %d. Symbol: %s. Profit/Loss: %f.", _Symbol, EnumToString(positionType), ticket, symbol, profitLoss);
          
@@ -154,12 +140,14 @@ bool runPriceActionsStrategy() {
    if (openPositionLimitReached()){
       return false;
    }
-
-   if (runS5BuyStrategy()){
+   
+   if (runS5SellStrategy()){
       return true;
    }
    
-   if (runS5SellStrategy()){
+   // return false;
+
+   if (runS5BuyStrategy()){
       return true;
    }
    
