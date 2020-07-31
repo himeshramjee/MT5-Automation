@@ -9,8 +9,8 @@ enum ENUM_HELLOEA_STRATEGIES {
    EMA_ADX_MA_TRENDS = 0,     // S1: Simple Trending using EMA and ADX
    RSI_OBOS = 1,              // S2: RSI, OBOS, Shorts only
    RSI_SPIKES = 2,            // S3: RSI, Spikes, Shorts only
-   STOCH_ICHI = 3,             // S4: Silent Stoch and Ichimoku
-   PRICE_ACTIONS = 4             // S5: Price Actions
+   STOCH_ICHI = 3,            // S4: Silent Stoch and Ichimoku
+   PRICE_ACTIONS = 4          // S5: Price Actions
 };
 
 input group "Hello EA options";
@@ -22,17 +22,17 @@ input ENUM_HELLOEA_STRATEGIES selectedEAStrategy = ENUM_HELLOEA_STRATEGIES::PRIC
 #include <EAUtils/MarketUtils.mqh>
 #include <EAUtils/TradeUtils.mqh>
 
-#include <EAUtils/TrendingStrategy.mqh>
+// #include <EAUtils/TrendingStrategy.mqh>
 #include <EAUtils/RSIOBOSStrategy.mqh>
-#include <EAUtils/RSISpikeStrategy.mqh>
-#include <EAUtils/StochimokuStrategy.mqh>
+// #include <EAUtils/RSISpikeStrategy.mqh>
+// #include <EAUtils/StochimokuStrategy.mqh>
 #include <EAUtils/PriceActionsStrategy.mqh>
 
 int      accountLeverage = (int) AccountInfoInteger(ACCOUNT_LEVERAGE);
 string   accountCurrency = AccountInfoString(ACCOUNT_CURRENCY);
 double   accountMarginLevel = AccountInfoDouble(ACCOUNT_MARGIN_LEVEL);
 
-bool enableEATrading = true;  // True to enable bot trading, false to only signal
+bool tradingEnabled = true;  // True to enable bot trading, false to only signal
 
 //+------------------------------------------------------------------+
 //| Expert initialization function                                   |
@@ -64,21 +64,21 @@ int OnInit() {
    EventSetTimer(60);
 
    if (selectedEAStrategy == ENUM_HELLOEA_STRATEGIES::EMA_ADX_MA_TRENDS) {
-      if(!initTrendingIndicators()) {
+      /*if(!initTrendingIndicators()) {
          return INIT_FAILED;
-      }
+      }*/
    } else if (selectedEAStrategy == ENUM_HELLOEA_STRATEGIES::RSI_OBOS) {
       if(!initRSIOBOSIndicators()) {
          return INIT_FAILED;
       }
    } else if (selectedEAStrategy == ENUM_HELLOEA_STRATEGIES::RSI_SPIKES) {
-      if(!initRSISpikeIndicators()) {
+      /*if(!initRSISpikeIndicators()) {
          return INIT_FAILED;
-      }
+      }*/
    } else if (selectedEAStrategy == ENUM_HELLOEA_STRATEGIES::STOCH_ICHI) {
-      if (!initStochimokuIndicators()) {
+      /*if (!initStochimokuIndicators()) {
          return INIT_FAILED;
-      }
+      }*/
    } else if (selectedEAStrategy == ENUM_HELLOEA_STRATEGIES::PRICE_ACTIONS) {
       if (!initPriceActionsIndicators()) {
          return INIT_FAILED;
@@ -107,19 +107,19 @@ void OnDeinit(const int reason) {
    EventKillTimer();
    
    if (selectedEAStrategy == ENUM_HELLOEA_STRATEGIES::EMA_ADX_MA_TRENDS) {
-      releaseTrendingIndicators();
+      // releaseTrendingIndicators();
    } else if (selectedEAStrategy == ENUM_HELLOEA_STRATEGIES::RSI_OBOS) {
       releaseRSIOBOSIndicators();
    } else if (selectedEAStrategy == ENUM_HELLOEA_STRATEGIES::RSI_SPIKES) {
-      releaseRSISpikeIndicators();
+      // releaseRSISpikeIndicators();
    } else if (selectedEAStrategy == ENUM_HELLOEA_STRATEGIES::STOCH_ICHI) {
-      releaseStochimokuIndicators();
+      // releaseStochimokuIndicators();
    } else if (selectedEAStrategy == ENUM_HELLOEA_STRATEGIES::PRICE_ACTIONS) {
       releasePriceActionsIndicators();
    }
 
    // FIXME: Unfortunately this makes analysing results much harder. 
-   // Need to confirm that EA Exit/Remove processing will clean these up properly. Smoke/sniff tests look A-Ok.
+   // Need to confirm that EA Exit/Remove processing will clean these up properly. Smoke/sniff tests look okish...normal non-test terminal exits show small amount of memory leakage that I've not tracked down yet.
    // At least make this user driven with a chart button.
    // deInitEAUtils();
    
@@ -135,9 +135,14 @@ void OnDeinit(const int reason) {
 //| Expert tick function                                             |
 //+------------------------------------------------------------------+
 // Called each time a new tick/price quote is received
-void OnTick() {   
-   if (!checkBarCount() || !isNewBar()) {
+void OnTick() {
+   if (!checkBarCount()) {
       return;
+   }
+   
+   if (!isNewBar()) {
+      // FIXME: This matters on the higher timeframes like M15 even where profitable positions can swing into loss before the candle closes
+      // return;
    }
    
    if (!handleMarketTickEvent()) {
@@ -150,28 +155,28 @@ void OnTick() {
    calculateMaxUsedMargin();  
    
    if (selectedEAStrategy == ENUM_HELLOEA_STRATEGIES::EMA_ADX_MA_TRENDS) {
-      if (runTrendingStrategy()) {
+      /*if (runTrendingStrategy()) {
          sendOrder(false);
-      }  
+      }*/ 
    } else if (selectedEAStrategy == ENUM_HELLOEA_STRATEGIES::RSI_OBOS) {
       if (runRSIOBOSStrategy()) {
          sendOrder(false);
       }  
    } else if (selectedEAStrategy == ENUM_HELLOEA_STRATEGIES::RSI_SPIKES) {
-      if (runRSISpikeStrategy()) {
+      /*if (runRSISpikeStrategy()) {
          sendOrder(false);
-      }  
+      }*/ 
    } else if (selectedEAStrategy == ENUM_HELLOEA_STRATEGIES::STOCH_ICHI) {
-      if (runStochimokuStrategy()) {
+      /*if (runStochimokuStrategy()) {
          sendOrder(false);
-      }  
+      }*/ 
    } else if (selectedEAStrategy == ENUM_HELLOEA_STRATEGIES::PRICE_ACTIONS) {
       if (runPriceActionsStrategy()) {
          sendOrder(false);
       }  
    } else {
       Print("Hello EA found no valid selected strategy.");
-   }   
+   }
 }
 
 bool isTraderReady() {
@@ -186,7 +191,7 @@ bool isTraderReady() {
    }
 
    Print("Welcome to Hello EA!");
-   Print("HelloEA trades are ", (enableEATrading ? "Enabled." : "Disabled."));
+   Print("HelloEA trades are ", (tradingEnabled ? "Enabled." : "Disabled."));
    
    return true;
 }

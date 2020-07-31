@@ -51,29 +51,6 @@ void deInitMarketUtils() {
 }
 
 bool setupCharts() {
-   /*
-   long signalsChartID = ChartNext(ChartFirst());   // e.g. I want 2 windows of the same symbol, 1 on M1 and another on M15/candlePatternsTimeframe
-   long signalsChartID = -1;
-   
-   while (signalsChartID != -1) {
-      if (ChartSymbol(signalsChartID) == _Symbol) { // && ChartPeriod(signalsChartID) == candlePatternsTimeframe) {
-         signalsChartID = signalsChartID;
-      }
-      signalsChartID = ChartNext(signalsChartID);
-   }
-   
-   if (signalsChartID == -1) {
-      candlePatternsTimeframeChartHandle = ChartOpen(_Symbol, candlePatternsTimeframe);
-      if (candlePatternsTimeframeChartHandle <= 0) {
-         Alert(StringFormat("Failed to open chart. Symbol: %s, Timeframe: %d", _Symbol, EnumToString(candlePatternsTimeframe)));
-         return false;
-      }
-      PrintFormat("Opened new chart for price action patterns. Symbol: %s, Timeframe: %s", _Symbol, EnumToString(candlePatternsTimeframe));
-   } else if (ChartPeriod(signalsChartID) != candlePatternsTimeframe) {
-      ChartSetSymbolPeriod(signalsChartID, _Symbol, candlePatternsTimeframe);
-   }
-   */
-   
    // Ensure the EA is on the correct timeframe
    if (ChartPeriod(signalsChartID) != candlePatternsTimeframe) {
       ChartSetSymbolPeriod(signalsChartID, _Symbol, candlePatternsTimeframe);
@@ -153,7 +130,6 @@ void scanForBearishPriceActionPatterns() {
    // Time line at which to display the visual que
    datetime time = symbolPriceData[priceOffset].time;
    
-   // int bearishPatternsScanned = 0;
    bearishPatternsFoundCounter = 0;
    
    if (candlePatterns.CheckCandlestickPattern(ENUM_CANDLE_PATTERNS::CANDLE_PATTERN_THREE_BLACK_CROWS)) {
@@ -203,7 +179,6 @@ void scanForBullishPriceActionPatterns() {
    // Time line at which to display the visual que
    datetime time = symbolPriceData[priceOffset].time;
    
-   // int BullishPatternsScanned = 0;
    bullishPatternsFoundCounter = 0;
    
    if (candlePatterns.CheckCandlestickPattern(ENUM_CANDLE_PATTERNS::CANDLE_PATTERN_THREE_WHITE_SOLDIERS)) {
@@ -243,6 +218,11 @@ void scanForBullishPriceActionPatterns() {
 }
 
 void highlightPriceActionPattern(string name, datetime time, double price, int colour) {
+   if (!isNewBar()) {
+      // Dont spam the user on every tick
+      return;
+   }
+
    // Add a visual cue
    string visualCueUniqueName = StringFormat("%s%s (%s)(%f).", signalNamePrefix, name, TimeToString(time), price);
    price = price + (50 * Point());
@@ -251,6 +231,8 @@ void highlightPriceActionPattern(string name, datetime time, double price, int c
 
    // Signal: Dark Cloud Cover near 2020.07.26 04:30 and 9222.033000
    // Signal: Bullish Meeting Lines near 2020.07.26 04:30 and 9222.033000
+   
+   enableMarketPushNotifications ? SendNotification(StringFormat("%s %s", _Symbol, visualCueUniqueName)) : 0;
    
    if (ObjectCreate(signalsChartID, visualCueUniqueName, OBJ_TEXT, 0, time, price)) {
       ObjectSetString(signalsChartID, visualCueUniqueName, OBJPROP_TEXT, name);
@@ -309,8 +291,10 @@ bool isBearishMarket() {
    static bool bearishMarket = false;
    bool bearishMarketNow = false;
 
+   double midpointOfPreviousBar = candlePatterns.MidOpenClose(1); // symbolPriceData[1].close;
+
    if (symbolPriceData[1].open > symbolPriceData[1].close         // Previous candle was Bearish
-         && latestTickPrice.bid < symbolPriceData[1].close        // Current price is lower than previous close
+         && latestTickPrice.bid < midpointOfPreviousBar        // Current price is lower than previous close
          && symbolPriceData[1].close  < candlePatterns.MA(0)) {   // Previous price is below EMA
       bearishMarketNow = true;
    }
@@ -320,7 +304,8 @@ bool isBearishMarket() {
       bearishMarket = true;
       
       string visualCueUniqueName = StringFormat("%s is Bearish at %s. \nBid price: %f. \nPrev. candle Close: %f. \nEMA: %f.", _Symbol, (string)TimeCurrent(), latestTickPrice.bid, symbolPriceData[1].close, candlePatterns.MA(0));
-      enableMarketPushNotifications ? SendNotification(visualCueUniqueName) : 0;
+      // enableMarketPushNotifications ? SendNotification(visualCueUniqueName) : 0;
+      
       // Add a visual cue
       highlightMarketCondition(visualCueUniqueName, OBJ_ARROW, symbolPriceData[1].high /*+ (visualObjectOffsetValue * Point())*/, "Open: Bearish", 90.0, ANCHOR_TOP, clrRed);
    }
@@ -329,7 +314,8 @@ bool isBearishMarket() {
       bearishMarket = false;
       
       string visualCueUniqueName = StringFormat("%s no longer bearish at %s. \nAsk price: %f. \nPrev. candle Close: %f. \nEMA: %f.", _Symbol, (string)TimeCurrent(), latestTickPrice.ask, symbolPriceData[1].close, candlePatterns.MA(0));
-      enableMarketPushNotifications ? SendNotification(visualCueUniqueName) : 0; 
+      // enableMarketPushNotifications ? SendNotification(visualCueUniqueName) : 0; 
+      
       // Add a visual cue
       highlightMarketCondition(visualCueUniqueName, OBJ_ARROW, symbolPriceData[1].low /*- (visualObjectOffsetValue * Point())*/, "Close: Bearish", 270.0, ANCHOR_TOP, clrBlack);
    }
@@ -341,8 +327,10 @@ bool isBullishMarket() {
    static bool bullishMarket = false;
    bool bullishMarketNow = false;
    
+   double midpointOfPreviousBar = candlePatterns.MidOpenClose(1); // symbolPriceData[1].close;
+      
    if (symbolPriceData[1].open < symbolPriceData[1].close         // Previous candle was bullish
-         && latestTickPrice.ask > symbolPriceData[1].close        // Current price is higher than previous close
+         && latestTickPrice.ask > midpointOfPreviousBar        // Current price is higher than previous close
          && symbolPriceData[1].close > candlePatterns.MA(0)) {    // Previous price is above EMA
       bullishMarketNow = true;
    }
@@ -352,7 +340,7 @@ bool isBullishMarket() {
       bullishMarket = true;
       
       string visualCueUniqueName = StringFormat("%s is Bullish at %s. \nAsk price: %f. \nPrev. candle Close: %f. \nEMA: %f.", _Symbol, (string)TimeCurrent(), latestTickPrice.ask, symbolPriceData[1].close, candlePatterns.MA(0));
-      enableMarketPushNotifications ? SendNotification(visualCueUniqueName) : 0;
+      // enableMarketPushNotifications ? SendNotification(visualCueUniqueName) : 0;
       // Add a visual cue
       highlightMarketCondition(visualCueUniqueName, OBJ_ARROW, symbolPriceData[1].high /*+ (visualObjectOffsetValue * Point())*/, "Open: Bullish", 90.0, ANCHOR_TOP, clrBlue);
    }
@@ -361,7 +349,7 @@ bool isBullishMarket() {
       bullishMarket = false;
       
       string visualCueUniqueName = StringFormat("%s no longer bullish at %s. \nAsk price: %f. \nPrev. candle Close: %f. \nEMA: %f.", _Symbol, (string)TimeCurrent(), latestTickPrice.ask, symbolPriceData[1].close, candlePatterns.MA(0));
-      enableMarketPushNotifications ? SendNotification(visualCueUniqueName) : 0;
+      // enableMarketPushNotifications ? SendNotification(visualCueUniqueName) : 0;
       // Add a visual cue
       highlightMarketCondition(visualCueUniqueName, OBJ_ARROW, symbolPriceData[1].low /*- (visualObjectOffsetValue * Point())*/, "Close: Bullish", 270.0, ANCHOR_TOP, clrBlack);
    }

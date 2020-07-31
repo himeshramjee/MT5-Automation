@@ -228,9 +228,9 @@ void closeS4ITMPositions() {
    int openPositionCount = PositionsTotal(); // number of open positions
    
    for (int i = 0; i < openPositionCount; i++) {
+      ulong ticket = PositionGetTicket(i);
       ENUM_POSITION_TYPE positionType = (ENUM_POSITION_TYPE) PositionGetInteger(POSITION_TYPE);
 
-      ulong ticket = PositionGetTicket(i);
       string symbol = PositionGetSymbol(i);
       double profitLoss = PositionGetDouble(POSITION_PROFIT);
       ulong  magic = PositionGetInteger(POSITION_MAGIC);
@@ -259,7 +259,7 @@ bool runStochimokuStrategy() {
 
    closeS4ITMPositions();
       
-   if (openPositionLimitReached()){
+   if (newOrdersPermitted()){
       return false;
    }
 

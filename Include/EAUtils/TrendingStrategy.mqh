@@ -76,9 +76,9 @@ bool runTrendingBuyStrategy() {
    if(Buy_Condition_1 && Buy_Condition_2) {
       if(Buy_Condition_3 && Buy_Condition_4) {         
          setupGenericTradeRequest();
-         mTradeRequest.price = NormalizeDouble(latestTickPrice.ask, _Digits);            // latest ask price
-         mTradeRequest.tp = latestTickPrice.ask + s1TakeProfit * _Point; // Take Profit
-         mTradeRequest.type = ORDER_TYPE_BUY;                                         // Buy Order
+         mTradeRequest.price = NormalizeDouble(latestTickPrice.ask, _Digits);
+         mTradeRequest.tp = latestTickPrice.ask + s1TakeProfit * _Point;
+         mTradeRequest.type = ORDER_TYPE_BUY;
          mTradeRequest.comment = mTradeRequest.comment + "S1 Buy conditions.";
          
          return true;
@@ -105,9 +105,9 @@ bool runTrendingSellStrategy() {
    if(Sell_Condition_1 && Sell_Condition_2) {
       if(Sell_Condition_3 && Sell_Condition_4) {         
          setupGenericTradeRequest();
-         mTradeRequest.price = NormalizeDouble(latestTickPrice.bid, _Digits);           // latest Bid price
-         mTradeRequest.tp = latestTickPrice.bid - s1TakeProfit * _Point; // Take Profit
-         mTradeRequest.type = ORDER_TYPE_SELL;                                         // Sell Order
+         mTradeRequest.price = NormalizeDouble(latestTickPrice.bid, _Digits);
+         mTradeRequest.tp = latestTickPrice.bid - s1TakeProfit * _Point;
+         mTradeRequest.type = ORDER_TYPE_SELL;
          mTradeRequest.comment = mTradeRequest.comment + "S1 Sell conditions.";
          
          return true;
@@ -118,7 +118,7 @@ bool runTrendingSellStrategy() {
 }
 
 bool runTrendingStrategy() {
-   if (openPositionLimitReached()){
+   if (newOrdersPermitted()){
       return false;
    }
  

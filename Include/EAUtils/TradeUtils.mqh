@@ -1,8 +1,8 @@
 input group "Positioning (All strategies)";
-input double percentageLossLimit = 10; // Loss limit per trade. e.g. 1 % of equity
-input int openPositionsLimit = 3;        // Open Positions Limit
-input double lotSize = 4.0;              // Lots to Trade
-
+input double percentageLossLimit = 1000.0;  // Loss limit per trade. e.g. 1 % of equity
+input int openPositionsLimit = 3;         // Open Positions Limit
+input double lotSize = 4.0;               // Lots to Trade
+input double dailyProfitTarget = 200.0;   // Daily profit target
 // Order parameters
 MqlTradeRequest mTradeRequest;   // To be used for sending our trade requests
 MqlTradeResult mTradeResult;     // To be used to get our trade results
@@ -97,6 +97,7 @@ void calculateMaxUsedMargin() {
    // Pull a margin stat before continuing
    int openPositionCount = PositionsTotal(); // number of open positions
    for (int i = 0; i < openPositionCount; i++) { 
+      ulong ticket = PositionGetTicket(i);
       positionVolume = PositionGetDouble(POSITION_VOLUME);
       positionPrice = PositionGetDouble(POSITION_PRICE_CURRENT);
       
@@ -108,10 +109,27 @@ void calculateMaxUsedMargin() {
    }
 }
 
+bool newOrdersPermitted() {
+   return tradingEnabled && !isDailyProfitTargetMet() && !openPositionLimitReached();
+}
+
+bool isDailyProfitTargetMet() {
+   double netProfit = 0.0;
+   
+   if (netProfit >= dailyProfitTarget) {
+      PrintFormat("Disabling EA Trading as daily profit target of %d %s has been met.", netProfit, accountCurrency);
+      return true;
+   }
+   
+   return false;
+}
+
 bool openPositionLimitReached() {
    int openPositionsByEACount = 0;
+   int totalPositions = PositionsTotal();
    
-   for (int i = 0; i < PositionsTotal(); i++) { 
+   for (int i = 0; i < totalPositions; i++) { 
+      ulong ticket = PositionGetTicket(i);
       ulong  magic = PositionGetInteger(POSITION_MAGIC);
       if (magic == EAMagic) {
          openPositionsByEACount++;
@@ -127,7 +145,7 @@ bool openPositionLimitReached() {
 }
 
 void closePositionsAboveLossLimit() {
-   if (!enableEATrading) {
+   if (!tradingEnabled) {
       return;
    }
 
@@ -137,13 +155,12 @@ void closePositionsAboveLossLimit() {
    string commentToAppend;
    
    for (int i = 0; i < openPositionCount; i++) {
-      // Only act on EA owned positions
+      ulong ticket = PositionGetTicket(i);
       ulong  magic = PositionGetInteger(POSITION_MAGIC);
       if (magic != EAMagic) {
          continue;
       }
    
-      ulong ticket = PositionGetTicket(i);
       string symbol = PositionGetSymbol(i);
       double profitLoss = PositionGetDouble(POSITION_PROFIT);
       double volume = PositionGetDouble(POSITION_VOLUME);
@@ -176,7 +193,7 @@ void closePositionsAboveLossLimit() {
 }
 
 bool closePosition(ulong magic, ulong ticket, string symbol, ENUM_POSITION_TYPE positionType, double volume, string commentToAppend, bool profitable) {
-   if (!enableEATrading) {
+   if (!tradingEnabled) {
       return false;
    }
 
@@ -239,7 +256,7 @@ void setupGenericTradeRequest() {
 }
 
 bool sendOrder(bool isClosingOrder) {
-   if (!enableEATrading) {
+   if (!tradingEnabled) {
       return false;
    }
      

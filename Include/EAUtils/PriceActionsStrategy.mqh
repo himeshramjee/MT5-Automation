@@ -1,5 +1,5 @@
 input group "S5: Strategy 5 - Price Actions"
-input double   s5MinimumTakeProfitValue = 5.0;     // Value (in currency) at which to Take Profit
+input double   s5MinimumTakeProfitValue = 22.0;     // Value (in currency) at which to Take Profit
 input bool     s5TradeWithTrendOnly = false;       // True if new positions must follow trend direction
 
 bool initPriceActionsIndicators() {
@@ -38,7 +38,7 @@ bool runS5SellStrategy() {
       
       // Add a visual cue
       string visualCueName = StringFormat("%s s5 signal at %s. BearishPattern count: %d.", signalNamePrefix, (string)s5SellCondition1TimeAtSignal, bearishPatternsFoundCounter);
-      ObjectCreate(0, visualCueName, OBJ_ARROW_DOWN, 0, s5SellCondition1TimeAtSignal, latestTickPrice.bid + (50 * Point()));
+      ObjectCreate(0, visualCueName, OBJ_ARROW_DOWN, 0, s5SellCondition1TimeAtSignal, latestTickPrice.bid - (50 * Point()));
       ObjectSetInteger(0, visualCueName, OBJPROP_ANCHOR, ANCHOR_TOP);
       ObjectSetInteger(0, visualCueName, OBJPROP_ALIGN, ALIGN_CENTER);
       ObjectSetInteger(0, visualCueName, OBJPROP_FILL, true);
@@ -62,6 +62,66 @@ bool runS5SellStrategy() {
    return false;
 }
 
+bool runS5TimerStrategy() {   
+   if (symbolPriceData[1].close >= latestTickPrice.bid) {   // Bearish candle
+      setupGenericTradeRequest();
+      mTradeRequest.type = ORDER_TYPE_SELL;
+      mTradeRequest.price = NormalizeDouble(latestTickPrice.bid, _Digits);
+      mTradeRequest.comment = mTradeRequest.comment + "s5 Timed Sell conditions.";
+      return true;
+   }
+
+   if (symbolPriceData[1].close <= latestTickPrice.ask) {    // Bullish candle
+      setupGenericTradeRequest();
+      mTradeRequest.type = ORDER_TYPE_BUY;
+      mTradeRequest.price = NormalizeDouble(latestTickPrice.ask, _Digits);
+      mTradeRequest.comment = mTradeRequest.comment + "s5 Timed Buy conditions.";
+      return true;
+   }
+   
+   return false;
+}
+
+void closeS5TimedPositions() {
+   int openPositionCount = PositionsTotal(); // number of open positions
+   
+   for (int i = 0; i < openPositionCount; i++) {
+      ulong ticket = PositionGetTicket(i); // This method selects the required position which makes the subsequent calls apply to the expected position. Something like a global pointer to the current record being queried.      
+      string symbol = PositionGetSymbol(i);      
+
+      if (symbol != _Symbol) {
+         // This position was opened by something else. Possibly this EA but on another symbol.
+         return;
+      }
+      
+      ENUM_POSITION_TYPE positionType = (ENUM_POSITION_TYPE) PositionGetInteger(POSITION_TYPE);
+      double profitLoss = PositionGetDouble(POSITION_PROFIT);
+      ulong  magic = PositionGetInteger(POSITION_MAGIC);
+      double volume = PositionGetDouble(POSITION_VOLUME);
+
+      datetime openTime = (datetime) PositionGetInteger(POSITION_TIME);
+      datetime currentTime = TimeCurrent();
+      int minutesPassed = (int) ((currentTime - openTime) / 60);
+      static int lastMinutePassed = minutesPassed - 1;
+
+      PrintFormat("%d mins passed for ticket %d.", minutesPassed, ticket);
+
+      if (minutesPassed != lastMinutePassed && minutesPassed % 2 == 0) { // No need to log on every tick. But wait there's 1 tick every second so check that we've already processed the current minute.
+         PrintFormat("Checking if ticket for %s has reached minimum TP value of %f %s - %s, Ticket: %d. Symbol: %s. Profit/Loss: %f.", _Symbol, s5MinimumTakeProfitValue, accountCurrency, EnumToString(positionType), ticket, symbol, profitLoss);
+      }
+      lastMinutePassed = minutesPassed;
+
+      if(profitLoss >= 0 || minutesPassed > 12) {
+         PrintFormat("Close profitable position for %s - %s, Ticket: %d. Symbol: %s. Profit/Loss: %f.", _Symbol, EnumToString(positionType), ticket, symbol, profitLoss);
+         
+         closePosition(magic, ticket, symbol, positionType, volume, "s5 profit conditions.", true);
+      } else {
+         // wait bit longer
+         // PrintFormat("Profitable position for %s has not reached minimum TP value of %f %s - %s, Ticket: %d. Symbol: %s. Profit/Loss: %f.", _Symbol, s5MinimumTakeProfitValue, accountCurrency, EnumToString(positionType), ticket, symbol, profitLoss);
+      }
+   }
+}
+
 bool runS5BuyStrategy() {
    static bool s5BuyCondition1SignalOn;
    static datetime s5BuyCondition1TimeAtSignal;
@@ -82,7 +142,7 @@ bool runS5BuyStrategy() {
       
       // Add a visual cue
       string visualCueName = StringFormat("%s s5 signalled at %s. Ask price: %f.", signalNamePrefix, (string)s5BuyCondition1TimeAtSignal, latestTickPrice.ask);
-      ObjectCreate(0, visualCueName, OBJ_ARROW_UP, 0, s5BuyCondition1TimeAtSignal, latestTickPrice.ask + (20 * Point()));
+      ObjectCreate(0, visualCueName, OBJ_ARROW_UP, 0, s5BuyCondition1TimeAtSignal, latestTickPrice.ask - (50 * Point()));
       ObjectSetInteger(0, visualCueName, OBJPROP_ANCHOR, ANCHOR_TOP);
       ObjectSetInteger(0, visualCueName, OBJPROP_ALIGN, ALIGN_CENTER);
       ObjectSetInteger(0, visualCueName, OBJPROP_FILL, true);
@@ -119,14 +179,30 @@ void closeS5ITMPositions() {
       double profitLoss = PositionGetDouble(POSITION_PROFIT);
       ulong  magic = PositionGetInteger(POSITION_MAGIC);
       double volume = PositionGetDouble(POSITION_VOLUME);
-            
+
+      if (symbol != _Symbol) {
+         // This position was opened by something else. Possibly this EA but on another symbol.
+         return;
+      } else {
+         if (loggingEnabled && profitLoss < 20.0) {
+            datetime openTime = (datetime) PositionGetInteger(POSITION_TIME);
+            datetime currentTime = TimeCurrent();
+            int minutesPassed = (int) ((currentTime - openTime) / 60);
+            static int lastMinutePassed = minutesPassed - 1;
+            if (minutesPassed != lastMinutePassed && minutesPassed % 5 == 0) { // No need to log on every tick. But wait there's 1 tick every second so check that we've already processed the current minute.
+               PrintFormat("Checking if ticket for %s has reached minimum TP value of %f %s - %s, Ticket: %d. Symbol: %s. Profit/Loss: %f.", _Symbol, s5MinimumTakeProfitValue, accountCurrency, EnumToString(positionType), ticket, symbol, profitLoss);
+            }
+            lastMinutePassed = minutesPassed;
+         }
+      }
+
       if(profitLoss >= s5MinimumTakeProfitValue) {
          PrintFormat("Close profitable position for %s - %s, Ticket: %d. Symbol: %s. Profit/Loss: %f.", _Symbol, EnumToString(positionType), ticket, symbol, profitLoss);
          
          closePosition(magic, ticket, symbol, positionType, volume, "s5 profit conditions.", true);
       } else {
          // wait bit longer
-         // PrintFormat("Profitable position for %s has not reached minimum TP value of %f - %s, Ticket: %d. Symbol: %s. Profit/Loss: %f.", _Symbol, s5MinimumTakeProfitValue, EnumToString(positionType), ticket, symbol, profitLoss);
+         // PrintFormat("Profitable position for %s has not reached minimum TP value of %f %s - %s, Ticket: %d. Symbol: %s. Profit/Loss: %f.", _Symbol, s5MinimumTakeProfitValue, accountCurrency, EnumToString(positionType), ticket, symbol, profitLoss);
       }
    }
 }
@@ -137,18 +213,50 @@ bool runPriceActionsStrategy() {
    }
 
    closeS5ITMPositions();
-      
-   if (openPositionLimitReached()){
+   
+   if (!newOrdersPermitted()){
+      // Position limit, trading disabled or daily profit target met
       return false;
    }
-   
+
    if (runS5SellStrategy()){
       return true;
    }
-   
-   // return false;
 
    if (runS5BuyStrategy()){
+      return true;
+   }
+   
+   return false;
+}
+
+bool runPriceActionsStrategy1() {
+   if (!populateS5Prices()) {
+      return false;
+   }
+   
+   datetime currentOpeningTime = (datetime) SeriesInfoInteger(Symbol(), Period(), SERIES_LASTBAR_DATE);
+   datetime currentTime = TimeCurrent();
+   int minutesPassed = (int) ((currentTime - currentOpeningTime) / 60);
+   
+   if (minutesPassed < 5) {
+      // Too early to place an order
+      return false;
+   }
+   
+   if (minutesPassed == 12) {
+      // x minutes have passed so close before bar completes and before I try and open new orders
+      closeS5TimedPositions();
+   }
+
+   if (!newOrdersPermitted()){
+      // Position limit, trading disabled or daily profit target met
+      return false;
+   }
+   
+   if (minutesPassed == 5) {
+      // Place new order
+      runS5TimerStrategy();
       return true;
    }
    
