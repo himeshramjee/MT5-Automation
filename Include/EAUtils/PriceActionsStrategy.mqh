@@ -141,12 +141,12 @@ void closeS5ITMPositions() {
          // This position was opened by something else. Possibly this EA but on another symbol.
          continue;
       } else {
-         if (loggingEnabled && profitLoss < 10.0) {
+         if (loggingEnabled && profitLoss < 5.0) {
             datetime openTime = (datetime) PositionGetInteger(POSITION_TIME);
             datetime currentTime = TimeCurrent();
             int minutesPassed = (int) ((currentTime - openTime) / 60);
             static int lastMinutePassed = minutesPassed - 1;
-            if (minutesPassed != lastMinutePassed && minutesPassed % 5 == 0) { // No need to log on every tick. But wait there's 1 tick every second so check that we've already processed the current minute.
+            if (minutesPassed != lastMinutePassed && minutesPassed % 2 == 0) { // No need to log on every tick. But wait there's 1 tick every second so check that we've already processed the current minute.
                PrintFormat("Checking if ticket for %s has reached minimum TP value of %.2f %s - %s, Ticket: %d. Symbol: %s. Profit/Loss: %.2f.", _Symbol, s5MinimumTakeProfitValue, accountCurrency, EnumToString(positionType), ticket, symbol, profitLoss);
             }
             lastMinutePassed = minutesPassed;

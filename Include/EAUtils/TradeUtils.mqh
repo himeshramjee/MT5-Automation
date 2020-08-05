@@ -260,9 +260,11 @@ void closePositionsAboveLossLimit() {
       lossThreshold = accountEquity * (percentageLossLimit / 100) * -1.0;
       
       // FIXME: Not accounting for slippage
-      if(profitLoss <= lossThreshold) {
+      // if(profitLoss <= lossThreshold) {
+      if (profitLoss <= -20.0) {
          // Loss is over user set limit so close the position
-         commentToAppend = StringFormat("Lost %s (%d). LL %.2f %s.", positionType == POSITION_TYPE_BUY ? "Buy" : "Sell", ticket, lossThreshold, accountCurrency);
+         // commentToAppend = StringFormat("Lost %s (%d). LL %.2f %s.", positionType == POSITION_TYPE_BUY ? "Buy" : "Sell", ticket, lossThreshold, accountCurrency);
+         commentToAppend = StringFormat("Lost %s (%d). P/L %.2f %s.", positionType == POSITION_TYPE_BUY ? "Buy" : "Sell", ticket, profitLoss, accountCurrency);
          Print(commentToAppend);
          
          closePosition(magic, ticket, symbol, positionType, volume, commentToAppend, false);
@@ -316,7 +318,7 @@ bool closePosition(ulong magic, ulong ticket, string symbol, ENUM_POSITION_TYPE 
       return false;
    }
    
-   string visualCueName = StringFormat("Close position for ticket %d", ticket);
+   string visualCueName = StringFormat("%s Close position for ticket %d", signalNamePrefix, ticket);
    // Add a visual cue
    if (profitable) {
       ObjectCreate(0, visualCueName, OBJ_ARROW_THUMB_UP, 0, TimeCurrent(), mTradeRequest.price);
