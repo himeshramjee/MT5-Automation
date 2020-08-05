@@ -140,10 +140,12 @@ void OnTick() {
       return;
    }
    
+   /*
    if (!isNewBar()) {
       // FIXME: This matters on the higher timeframes like M15 even where profitable positions can swing into loss before the candle closes
-      // return;
+      return;
    }
+   */
    
    if (!handleMarketTickEvent()) {
       ExpertRemove();

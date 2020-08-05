@@ -85,9 +85,11 @@ bool handleMarketTickEvent() {
       
    checkMarketConditions();
    
-   scanForBearishPriceActionPatterns();
+   if (isNewBar()) {
+      scanForBearishPriceActionPatterns();
    
-   scanForBullishPriceActionPatterns();
+      scanForBullishPriceActionPatterns();
+   }
    
    return true;
 }
@@ -218,11 +220,6 @@ void scanForBullishPriceActionPatterns() {
 }
 
 void highlightPriceActionPattern(string name, datetime time, double price, int colour) {
-   if (!isNewBar()) {
-      // Dont spam the user on every tick
-      return;
-   }
-
    // Add a visual cue
    string visualCueUniqueName = StringFormat("%s%s (%s)(%f).", signalNamePrefix, name, TimeToString(time), price);
    price = price + (50 * Point());
