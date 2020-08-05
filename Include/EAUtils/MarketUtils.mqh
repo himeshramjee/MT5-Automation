@@ -1,7 +1,7 @@
 #include <EAUtils/CandlePatterns.mqh>
 
 // Market data
-input bool              enableMarketPushNotifications = true;   // Enable market data push notifications
+input bool              enableMarketPushNotifications = false;   // Enable market data push notifications
 
 CCandlePattern *candlePatterns;
 input ENUM_TIMEFRAMES   candlePatternsTimeframe = PERIOD_M15;   // Chart timeframe to generate market signals

@@ -1,5 +1,5 @@
 input group "Positioning (All strategies)";
-input double percentageLossLimit = 1000.0;   // Loss limit per trade. e.g. 1 % of equity
+input double percentageLossLimit = 0.3;   // Loss limit per trade. e.g. 1 % of equity
 input int openPositionsLimit = 3;            // Open Positions Limit
 input double lotSize = 4.0;                  // Lots to Trade
 input double dailyProfitTarget = 200.0;      // Daily profit target
