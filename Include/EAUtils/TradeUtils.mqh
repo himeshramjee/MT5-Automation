@@ -3,6 +3,10 @@ input double percentageLossLimit = 1000.0;  // Loss limit per trade. e.g. 1 % of
 input int openPositionsLimit = 3;         // Open Positions Limit
 input double lotSize = 4.0;               // Lots to Trade
 input double dailyProfitTarget = 200.0;   // Daily profit target
+double dailyLossLimit = 200.0;   // Daily loss limit
+bool tradeWithBears = true;         // True to open Sell positions, else false
+bool tradeWithBulls = true;         // True to open Buy positions, else false
+
 // Order parameters
 MqlTradeRequest mTradeRequest;   // To be used for sending our trade requests
 MqlTradeResult mTradeResult;     // To be used to get our trade results
@@ -15,6 +19,8 @@ int insufficientMarginCount = 0;
 int totalSellOrderCount = 0;
 int totalBuyOrderCount = 0;
 int totalFailedOrderCount = 0;
+int profitableDaysCounter = 0;
+int lossDaysCounter = 0;
 
 bool accountHasSufficientMargin(string symb, double lots, ENUM_ORDER_TYPE type) {
    double price = latestTickPrice.ask;
@@ -39,7 +45,7 @@ bool accountHasSufficientMargin(string symb, double lots, ENUM_ORDER_TYPE type) 
    // User does not have enough margin to take the trade
    if(requiredMargin > freeMargin) {
       insufficientMarginCount++;
-      PrintFormat("Not enough money for %s %f lots of %s (Error code = %d). Required margin is %f %s. Free Margin is %f %s. Account Margin Level is %f%%.", EnumToString(type), lots, _Symbol, GetLastError(), requiredMargin, accountCurrency, freeMargin, accountCurrency, accountMarginLevel);      
+      // PrintFormat("Not enough money for %s %f lots of %s (Error code = %d). Required margin is %f %s. Free Margin is %f %s. Account Margin Level is %f%%.", EnumToString(type), lots, _Symbol, GetLastError(), requiredMargin, accountCurrency, freeMargin, accountCurrency, accountMarginLevel);      
       return false;
    }
    
@@ -110,18 +116,80 @@ void calculateMaxUsedMargin() {
 }
 
 bool newOrdersPermitted() {
-   return tradingEnabled && !isDailyProfitTargetMet() && !openPositionLimitReached();
+   return tradingEnabled && !isDailyProfitLossTargetsMet() && !openPositionLimitReached();
 }
 
-bool isDailyProfitTargetMet() {
-   double netProfit = 0.0;
+bool isDailyProfitLossTargetsMet() {
+   static bool targetsMet = false;
+   static double accountBalanceAtStart = NormalizeDouble(AccountInfoDouble(ACCOUNT_BALANCE), 2);
+   double currentAccountEquity = NormalizeDouble(AccountInfoDouble(ACCOUNT_EQUITY), 2);
+   double netProfit = currentAccountEquity - accountBalanceAtStart;
    
-   if (netProfit >= dailyProfitTarget) {
-      PrintFormat("Disabling EA Trading as daily profit target of %d %s has been met.", netProfit, accountCurrency);
+   if (isNewDay()) {
+      PrintFormat("Trade targets: New trading day. Previous P/L was %f %s.", netProfit, accountCurrency);
+      targetsMet = false;
+      
+      // Reset initial account balance
+      accountBalanceAtStart = NormalizeDouble(AccountInfoDouble(ACCOUNT_BALANCE), 2);      
+      netProfit = currentAccountEquity - accountBalanceAtStart;
+   }
+   
+   if (targetsMet) {
       return true;
    }
    
-   return false;
+   if (netProfit >= dailyProfitTarget) {
+      PrintFormat("\nTrade targets: Trading paused. Daily profit target of %f %s has been met. Closing all positions.", dailyProfitTarget, accountCurrency);
+      
+      profitableDaysCounter++;      
+      targetsMet = true;
+      
+      closeAllPositions();
+   } else if (netProfit <= (dailyLossLimit * -1)) {
+      PrintFormat("\nTrade targets: Trading paused as daily loss limit of %f %s has been reached. Closing all positions.", dailyLossLimit * -1, accountCurrency);
+      
+      lossDaysCounter++;
+      targetsMet = true;
+      
+      closeAllPositions();
+   }
+   
+   return targetsMet;
+}
+
+void closeAllPositions() {
+   int positionsClosed = 0;
+   int totalPositions = PositionsTotal();
+   
+   for (int i = 0; i < totalPositions; i++) { 
+      ulong ticket = PositionGetTicket(i);
+      ulong  magic = PositionGetInteger(POSITION_MAGIC);
+      if (magic == EAMagic) {
+         closePosition(magic, ticket, PositionGetSymbol(i), (ENUM_POSITION_TYPE) PositionGetInteger(POSITION_TYPE), PositionGetDouble(POSITION_VOLUME), "Closing all positions.", PositionGetDouble(POSITION_PROFIT) > 0 ? true : false);
+         positionsClosed++;
+      }
+   }
+   
+   if (positionsClosed > 0) {
+      PrintFormat("Closed %d positions (probably due to daily P/L limits being reached).", positionsClosed);
+   }
+}
+
+double valueOfOpenPositionsForSymbol(string symbol) {
+   // int openPositionsForSymbolCount = 0;
+   int totalPositions = PositionsTotal();
+   double totalProfitLossForSymbol = 0.0;
+   
+   for (int i = 0; i < totalPositions; i++) { 
+      ulong ticket = PositionGetTicket(i);
+      
+      if (EAMagic == PositionGetInteger(POSITION_MAGIC) && symbol == PositionGetSymbol(i)) {
+         // openPositionsForSymbolCount++;
+         totalProfitLossForSymbol += PositionGetDouble(POSITION_PROFIT);
+      }
+   }
+   
+   return totalProfitLossForSymbol;
 }
 
 bool openPositionLimitReached() {
@@ -154,26 +222,35 @@ void closePositionsAboveLossLimit() {
    double totalRealizedLosses = 0.0;
    string commentToAppend;
    
+   double profitLoss = 0.0;
+   double volume = 0.0;
+   double accountEquity = 0.0;
+   double lossThreshold = 0.0;
+   
    for (int i = 0; i < openPositionCount; i++) {
       ulong ticket = PositionGetTicket(i);
       ulong  magic = PositionGetInteger(POSITION_MAGIC);
       if (magic != EAMagic) {
          continue;
       }
-   
       string symbol = PositionGetSymbol(i);
-      double profitLoss = PositionGetDouble(POSITION_PROFIT);
-      double volume = PositionGetDouble(POSITION_VOLUME);
+      if (symbol != _Symbol) {
+         // This position was opened by something else. Possibly this EA but on another symbol.
+         continue;
+      }
+      
+      profitLoss = PositionGetDouble(POSITION_PROFIT);
+      volume = PositionGetDouble(POSITION_VOLUME);
       ENUM_POSITION_TYPE positionType = (ENUM_POSITION_TYPE) PositionGetInteger(POSITION_TYPE);
-      commentToAppend = "Limiting loss position.";
-
-      double accountEquity = AccountInfoDouble(ACCOUNT_EQUITY);
-      double lossThreshold = accountEquity * (percentageLossLimit / 100);
+      
+      accountEquity = AccountInfoDouble(ACCOUNT_EQUITY);
+      lossThreshold = accountEquity * (percentageLossLimit / 100);
       
       // FIXME: Not accounting for slippage
-      if(profitLoss < 0 && profitLoss <= (lossThreshold * -1)) {
+      if(profitLoss <= (lossThreshold * -1)) {
          // Loss is over user set limit so close the position
-         PrintFormat("Closing loss position - %s, Ticket: %d. Symbol: %s. Profit/Loss: %f <= %f", EnumToString(positionType), ticket, symbol, profitLoss, percentageLossLimit);
+         commentToAppend = StringFormat("Loss %s (%d). LL %f.", positionType == POSITION_TYPE_BUY ? "Buy" : "Sell", ticket, symbol, lossThreshold * -1);
+         Print(commentToAppend);
          
          closePosition(magic, ticket, symbol, positionType, volume, commentToAppend, false);
          lossLimitPositionsClosedCount++;
@@ -261,8 +338,8 @@ bool sendOrder(bool isClosingOrder) {
    }
      
    // Do we have enough cash to place an order?
-   if (!accountHasSufficientMargin(_Symbol, lotSize, mTradeRequest.type)) {
-      Print("Insufficient funds in account. Disable this EA until you sort that out.");
+   if (!isClosingOrder && !accountHasSufficientMargin(_Symbol, lotSize, mTradeRequest.type)) {
+      // Print("Insufficient funds in account. Disable this EA until you sort that out.");
       return false;
    }
 

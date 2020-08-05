@@ -15,7 +15,6 @@ bool populateS5Prices() {
    // Everything provided by MarketUtils.mqh
    
    return true;
-
 }
 
 bool runS5SellStrategy() {
@@ -31,13 +30,22 @@ bool runS5SellStrategy() {
       return false;
    }
    
+   // Poor mans trend check
+   if (!isCurrentCandleBearish()) {
+      return false;
+   }
+   
+   if (valueOfOpenPositionsForSymbol(_Symbol) < 0) {
+      return false;
+   }
+   
    if (!s5SellCondition1SignalOn) {
       s5SellCondition1SignalOn = true;
       s5SellCondition1TimeAtSignal = TimeCurrent();
       s5SellConditionPriceAtSignal = latestTickPrice.bid;
       
       // Add a visual cue
-      string visualCueName = StringFormat("%s s5 signal at %s. BearishPattern count: %d.", signalNamePrefix, (string)s5SellCondition1TimeAtSignal, bearishPatternsFoundCounter);
+      string visualCueName = StringFormat("%s s5 signal at %s. Bearish count: %d.", signalNamePrefix, (string)s5SellCondition1TimeAtSignal, bearishPatternsFoundCounter);
       ObjectCreate(0, visualCueName, OBJ_ARROW_DOWN, 0, s5SellCondition1TimeAtSignal, latestTickPrice.bid - (50 * Point()));
       ObjectSetInteger(0, visualCueName, OBJPROP_ANCHOR, ANCHOR_TOP);
       ObjectSetInteger(0, visualCueName, OBJPROP_ALIGN, ALIGN_CENTER);
@@ -46,7 +54,7 @@ bool runS5SellStrategy() {
       ObjectSetInteger(0, visualCueName, OBJPROP_SELECTABLE, 1);
       registerChartObject(visualCueName);
    }
-   
+
    if(s5SellCondition1SignalOn) {      
       setupGenericTradeRequest();
       mTradeRequest.type = ORDER_TYPE_SELL;
@@ -60,6 +68,100 @@ bool runS5SellStrategy() {
    }
    
    return false;
+}
+
+bool runS5BuyStrategy() {
+   static bool s5BuyCondition1SignalOn;
+   static datetime s5BuyCondition1TimeAtSignal;
+   static double s5BuyConditionPriceAtSignal;
+   
+   if (s5TradeWithTrendOnly && !isBullishMarket()) {
+      return false;
+   }
+   
+   if (bullishPatternsFoundCounter == 0) {
+      return false;
+   }
+   
+   // Poor mans trend check
+   if (!isCurrentCandleBullish()) {
+      return false;
+   }
+   
+   if (valueOfOpenPositionsForSymbol(_Symbol) < 0) {
+      return false;
+   }
+   
+   if (!s5BuyCondition1SignalOn) {
+      s5BuyCondition1SignalOn = true;
+      s5BuyCondition1TimeAtSignal = TimeCurrent();
+      s5BuyConditionPriceAtSignal = latestTickPrice.ask;
+      
+      // Add a visual cue
+      string visualCueName = StringFormat("%s s5 signalled at %s. Bull count: %d.", signalNamePrefix, (string)s5BuyCondition1TimeAtSignal, bullishPatternsFoundCounter);
+      ObjectCreate(0, visualCueName, OBJ_ARROW_UP, 0, s5BuyCondition1TimeAtSignal, latestTickPrice.ask - (50 * Point()));
+      ObjectSetInteger(0, visualCueName, OBJPROP_ANCHOR, ANCHOR_TOP);
+      ObjectSetInteger(0, visualCueName, OBJPROP_ALIGN, ALIGN_CENTER);
+      ObjectSetInteger(0, visualCueName, OBJPROP_FILL, true);
+      ObjectSetInteger(0, visualCueName, OBJPROP_COLOR, clrBlue);
+      ObjectSetInteger(0, visualCueName, OBJPROP_SELECTABLE, 1);
+      registerChartObject(visualCueName);
+      
+      // Signal triggered, now wait x mins before opening the Sell position      
+      return false;
+   }
+   
+   if(s5BuyCondition1SignalOn) {      
+      setupGenericTradeRequest();
+      mTradeRequest.type = ORDER_TYPE_BUY;
+      mTradeRequest.price = NormalizeDouble(latestTickPrice.ask, _Digits);
+      mTradeRequest.comment = mTradeRequest.comment + "s5 Buy conditions.";
+      
+      // Reset signal as all conditions have triggered and order can be placed
+      s5BuyCondition1SignalOn = false;
+      
+      return true;
+   }
+   
+   return false;
+}
+
+void closeS5ITMPositions() {
+   int openPositionCount = PositionsTotal(); // number of open positions
+   
+   for (int i = 0; i < openPositionCount; i++) {
+      ulong ticket = PositionGetTicket(i); // This method selects the required position which makes the subsequent calls apply to the expected position. Something like a global pointer to the current record being queried.
+      ENUM_POSITION_TYPE positionType = (ENUM_POSITION_TYPE) PositionGetInteger(POSITION_TYPE);
+      string symbol = PositionGetSymbol(i);
+      double profitLoss = PositionGetDouble(POSITION_PROFIT);
+      ulong  magic = PositionGetInteger(POSITION_MAGIC);
+      double volume = PositionGetDouble(POSITION_VOLUME);
+
+      if (symbol != _Symbol) {
+         // This position was opened by something else. Possibly this EA but on another symbol.
+         continue;
+      } else {
+         if (loggingEnabled && profitLoss < 10.0) {
+            datetime openTime = (datetime) PositionGetInteger(POSITION_TIME);
+            datetime currentTime = TimeCurrent();
+            int minutesPassed = (int) ((currentTime - openTime) / 60);
+            static int lastMinutePassed = minutesPassed - 1;
+            if (minutesPassed != lastMinutePassed && minutesPassed % 5 == 0) { // No need to log on every tick. But wait there's 1 tick every second so check that we've already processed the current minute.
+               PrintFormat("Checking if ticket for %s has reached minimum TP value of %f %s - %s, Ticket: %d. Symbol: %s. Profit/Loss: %f.", _Symbol, s5MinimumTakeProfitValue, accountCurrency, EnumToString(positionType), ticket, symbol, profitLoss);
+            }
+            lastMinutePassed = minutesPassed;
+         }
+      }
+
+      if(profitLoss >= s5MinimumTakeProfitValue) {
+         PrintFormat("Close profitable position for %s - %s, Ticket: %d. Symbol: %s. Profit/Loss: %f.", _Symbol, EnumToString(positionType), ticket, symbol, profitLoss);
+         
+         closePosition(magic, ticket, symbol, positionType, volume, "s5 profit conditions.", true);
+      } else {
+         // wait bit longer
+         // PrintFormat("Profitable position for %s has not reached minimum TP value of %f %s - %s, Ticket: %d. Symbol: %s. Profit/Loss: %f.", _Symbol, s5MinimumTakeProfitValue, accountCurrency, EnumToString(positionType), ticket, symbol, profitLoss);
+      }
+   }
 }
 
 bool runS5TimerStrategy() {   
@@ -122,91 +224,6 @@ void closeS5TimedPositions() {
    }
 }
 
-bool runS5BuyStrategy() {
-   static bool s5BuyCondition1SignalOn;
-   static datetime s5BuyCondition1TimeAtSignal;
-   static double s5BuyConditionPriceAtSignal;
-   
-   if (s5TradeWithTrendOnly && !isBullishMarket()) {
-      return false;
-   }
-   
-   if (bullishPatternsFoundCounter == 0) {
-      return false;
-   }
-   
-   if (!s5BuyCondition1SignalOn) {
-      s5BuyCondition1SignalOn = true;
-      s5BuyCondition1TimeAtSignal = TimeCurrent();
-      s5BuyConditionPriceAtSignal = latestTickPrice.ask;
-      
-      // Add a visual cue
-      string visualCueName = StringFormat("%s s5 signalled at %s. Ask price: %f.", signalNamePrefix, (string)s5BuyCondition1TimeAtSignal, latestTickPrice.ask);
-      ObjectCreate(0, visualCueName, OBJ_ARROW_UP, 0, s5BuyCondition1TimeAtSignal, latestTickPrice.ask - (50 * Point()));
-      ObjectSetInteger(0, visualCueName, OBJPROP_ANCHOR, ANCHOR_TOP);
-      ObjectSetInteger(0, visualCueName, OBJPROP_ALIGN, ALIGN_CENTER);
-      ObjectSetInteger(0, visualCueName, OBJPROP_FILL, true);
-      ObjectSetInteger(0, visualCueName, OBJPROP_COLOR, clrBlue);
-      ObjectSetInteger(0, visualCueName, OBJPROP_SELECTABLE, 1);
-      registerChartObject(visualCueName);
-      
-      // Signal triggered, now wait x mins before opening the Sell position      
-      return false;
-   }
-   
-   if(s5BuyCondition1SignalOn) {      
-      setupGenericTradeRequest();
-      mTradeRequest.type = ORDER_TYPE_BUY;
-      mTradeRequest.price = NormalizeDouble(latestTickPrice.ask, _Digits);
-      mTradeRequest.comment = mTradeRequest.comment + "s5 Buy conditions.";
-      
-      // Reset signal as all conditions have triggered and order can be placed
-      s5BuyCondition1SignalOn = false;
-      
-      return true;
-   }
-   
-   return false;
-}
-
-void closeS5ITMPositions() {
-   int openPositionCount = PositionsTotal(); // number of open positions
-   
-   for (int i = 0; i < openPositionCount; i++) {
-      ulong ticket = PositionGetTicket(i); // This method selects the required position which makes the subsequent calls apply to the expected position. Something like a global pointer to the current record being queried.
-      ENUM_POSITION_TYPE positionType = (ENUM_POSITION_TYPE) PositionGetInteger(POSITION_TYPE);
-      string symbol = PositionGetSymbol(i);
-      double profitLoss = PositionGetDouble(POSITION_PROFIT);
-      ulong  magic = PositionGetInteger(POSITION_MAGIC);
-      double volume = PositionGetDouble(POSITION_VOLUME);
-
-      if (symbol != _Symbol) {
-         // This position was opened by something else. Possibly this EA but on another symbol.
-         return;
-      } else {
-         if (loggingEnabled && profitLoss < 20.0) {
-            datetime openTime = (datetime) PositionGetInteger(POSITION_TIME);
-            datetime currentTime = TimeCurrent();
-            int minutesPassed = (int) ((currentTime - openTime) / 60);
-            static int lastMinutePassed = minutesPassed - 1;
-            if (minutesPassed != lastMinutePassed && minutesPassed % 5 == 0) { // No need to log on every tick. But wait there's 1 tick every second so check that we've already processed the current minute.
-               PrintFormat("Checking if ticket for %s has reached minimum TP value of %f %s - %s, Ticket: %d. Symbol: %s. Profit/Loss: %f.", _Symbol, s5MinimumTakeProfitValue, accountCurrency, EnumToString(positionType), ticket, symbol, profitLoss);
-            }
-            lastMinutePassed = minutesPassed;
-         }
-      }
-
-      if(profitLoss >= s5MinimumTakeProfitValue) {
-         PrintFormat("Close profitable position for %s - %s, Ticket: %d. Symbol: %s. Profit/Loss: %f.", _Symbol, EnumToString(positionType), ticket, symbol, profitLoss);
-         
-         closePosition(magic, ticket, symbol, positionType, volume, "s5 profit conditions.", true);
-      } else {
-         // wait bit longer
-         // PrintFormat("Profitable position for %s has not reached minimum TP value of %f %s - %s, Ticket: %d. Symbol: %s. Profit/Loss: %f.", _Symbol, s5MinimumTakeProfitValue, accountCurrency, EnumToString(positionType), ticket, symbol, profitLoss);
-      }
-   }
-}
-
 bool runPriceActionsStrategy() {
    if (!populateS5Prices()) {
       return false;
@@ -220,11 +237,11 @@ bool runPriceActionsStrategy() {
    }
 
    if (runS5SellStrategy()){
-      return true;
+      return tradeWithBears;
    }
 
    if (runS5BuyStrategy()){
-      return true;
+      return tradeWithBulls;
    }
    
    return false;

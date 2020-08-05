@@ -254,7 +254,7 @@ void highlightPriceActionPattern(string name, datetime time, double price, int c
 }
 
 bool checkMarketConditions() {
-   string marketConditionComment = StringFormat("%s trend is %s and %s.", _Symbol, isBearishMarket() ? "bearish" : "not bearish", isBullishMarket() ? "bullish" : "not bullish");
+   string marketConditionComment = StringFormat("%s trend is %s and %s. \nBearish Counter: %d\nBullish Counter: %d\nCandle is %s.", _Symbol, isBearishMarket() ? "bearish" : "not bearish", isBullishMarket() ? "bullish" : "not bullish", bearishPatternsFoundCounter, bullishPatternsFoundCounter, isCurrentCandleBearish() ? "bearish." : (isCurrentCandleBullish() ? "bullish" : "invalid."));
    Comment(marketConditionComment);
    
    return true;
@@ -287,6 +287,17 @@ void highlightMarketCondition(string visualCueUniqueName, ENUM_OBJECT objectType
    }
 }
 
+bool isCurrentCandleBearish() {
+   // Current price is lower than previous candles midpoint
+   // return latestTickPrice.bid < candlePatterns.MidOpenClose(1);
+   return latestTickPrice.bid < symbolPriceData[1].close;
+}
+
+bool isCurrentCandleBullish() {
+   // Current price is higher than previous candles midpoint
+   return latestTickPrice.ask > symbolPriceData[1].open;
+}
+
 bool isBearishMarket() {
    static bool bearishMarket = false;
    bool bearishMarketNow = false;
@@ -294,8 +305,7 @@ bool isBearishMarket() {
    double midpointOfPreviousBar = candlePatterns.MidOpenClose(1); // symbolPriceData[1].close;
 
    if (symbolPriceData[1].open > symbolPriceData[1].close         // Previous candle was Bearish
-         && latestTickPrice.bid < midpointOfPreviousBar        // Current price is lower than previous close
-         && symbolPriceData[1].close  < candlePatterns.MA(0)) {   // Previous price is below EMA
+         && symbolPriceData[1].close < candlePatterns.MA(0)) {   // Previous price is below EMA
       bearishMarketNow = true;
    }
    
@@ -330,7 +340,6 @@ bool isBullishMarket() {
    double midpointOfPreviousBar = candlePatterns.MidOpenClose(1); // symbolPriceData[1].close;
       
    if (symbolPriceData[1].open < symbolPriceData[1].close         // Previous candle was bullish
-         && latestTickPrice.ask > midpointOfPreviousBar        // Current price is higher than previous close
          && symbolPriceData[1].close > candlePatterns.MA(0)) {    // Previous price is above EMA
       bullishMarketNow = true;
    }

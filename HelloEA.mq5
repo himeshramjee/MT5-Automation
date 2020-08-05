@@ -23,7 +23,7 @@ input ENUM_HELLOEA_STRATEGIES selectedEAStrategy = ENUM_HELLOEA_STRATEGIES::PRIC
 #include <EAUtils/TradeUtils.mqh>
 
 // #include <EAUtils/TrendingStrategy.mqh>
-#include <EAUtils/RSIOBOSStrategy.mqh>
+// #include <EAUtils/RSIOBOSStrategy.mqh>
 // #include <EAUtils/RSISpikeStrategy.mqh>
 // #include <EAUtils/StochimokuStrategy.mqh>
 #include <EAUtils/PriceActionsStrategy.mqh>
@@ -68,9 +68,9 @@ int OnInit() {
          return INIT_FAILED;
       }*/
    } else if (selectedEAStrategy == ENUM_HELLOEA_STRATEGIES::RSI_OBOS) {
-      if(!initRSIOBOSIndicators()) {
+      /*if(!initRSIOBOSIndicators()) {
          return INIT_FAILED;
-      }
+      }*/
    } else if (selectedEAStrategy == ENUM_HELLOEA_STRATEGIES::RSI_SPIKES) {
       /*if(!initRSISpikeIndicators()) {
          return INIT_FAILED;
@@ -109,7 +109,7 @@ void OnDeinit(const int reason) {
    if (selectedEAStrategy == ENUM_HELLOEA_STRATEGIES::EMA_ADX_MA_TRENDS) {
       // releaseTrendingIndicators();
    } else if (selectedEAStrategy == ENUM_HELLOEA_STRATEGIES::RSI_OBOS) {
-      releaseRSIOBOSIndicators();
+      // releaseRSIOBOSIndicators();
    } else if (selectedEAStrategy == ENUM_HELLOEA_STRATEGIES::RSI_SPIKES) {
       // releaseRSISpikeIndicators();
    } else if (selectedEAStrategy == ENUM_HELLOEA_STRATEGIES::STOCH_ICHI) {
@@ -159,9 +159,9 @@ void OnTick() {
          sendOrder(false);
       }*/ 
    } else if (selectedEAStrategy == ENUM_HELLOEA_STRATEGIES::RSI_OBOS) {
-      if (runRSIOBOSStrategy()) {
+      /*if (runRSIOBOSStrategy()) {
          sendOrder(false);
-      }  
+      }*/
    } else if (selectedEAStrategy == ENUM_HELLOEA_STRATEGIES::RSI_SPIKES) {
       /*if (runRSISpikeStrategy()) {
          sendOrder(false);
@@ -217,6 +217,7 @@ void printExitSummary(){
    Print(marginInfoMessage);
    */
    
+   PrintFormat("A total of %d days were traded with %d being profitable and %d ending in losses.", (profitableDaysCounter + lossDaysCounter), profitableDaysCounter, lossDaysCounter);
    PrintFormat("A total of %d orders failed to be placed. A total of %d Sell orders and %d Buy orders were placed.", totalFailedOrderCount, totalSellOrderCount, totalBuyOrderCount);
    PrintFormat("Closed %d positions that were above loss limit threshold of %.2f%% of Account Equity per trade. There are currently %d open positions.", lossLimitPositionsClosedCount, percentageLossLimit, PositionsTotal());
    PrintFormat("Max used margin was %f %s. Max floating loss was %f %s. Orders missed due to insufficient margin was %d.", maxUsedMargin, accountCurrency, maxFloatingLoss, accountCurrency, insufficientMarginCount);
