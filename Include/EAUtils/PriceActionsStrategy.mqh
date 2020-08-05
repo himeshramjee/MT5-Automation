@@ -147,16 +147,16 @@ void closeS5ITMPositions() {
             int minutesPassed = (int) ((currentTime - openTime) / 60);
             static int lastMinutePassed = minutesPassed - 1;
             if (minutesPassed != lastMinutePassed && minutesPassed % 5 == 0) { // No need to log on every tick. But wait there's 1 tick every second so check that we've already processed the current minute.
-               PrintFormat("Checking if ticket for %s has reached minimum TP value of %f %s - %s, Ticket: %d. Symbol: %s. Profit/Loss: %f.", _Symbol, s5MinimumTakeProfitValue, accountCurrency, EnumToString(positionType), ticket, symbol, profitLoss);
+               PrintFormat("Checking if ticket for %s has reached minimum TP value of %.2f %s - %s, Ticket: %d. Symbol: %s. Profit/Loss: %.2f.", _Symbol, s5MinimumTakeProfitValue, accountCurrency, EnumToString(positionType), ticket, symbol, profitLoss);
             }
             lastMinutePassed = minutesPassed;
          }
       }
 
       if(profitLoss >= s5MinimumTakeProfitValue) {
-         PrintFormat("Close profitable position for %s - %s, Ticket: %d. Symbol: %s. Profit/Loss: %f.", _Symbol, EnumToString(positionType), ticket, symbol, profitLoss);
+         PrintFormat("Close profitable %s position for %s, Ticket: %d. Profit/Loss: %.2f.", positionType == POSITION_TYPE_BUY ? "BUY" : "SELL", symbol, ticket, profitLoss);
          
-         closePosition(magic, ticket, symbol, positionType, volume, "s5 profit conditions.", true);
+         closePosition(magic, ticket, symbol, positionType, volume, StringFormat("S5 profit (%d).", ticket), true);
       } else {
          // wait bit longer
          // PrintFormat("Profitable position for %s has not reached minimum TP value of %f %s - %s, Ticket: %d. Symbol: %s. Profit/Loss: %f.", _Symbol, s5MinimumTakeProfitValue, accountCurrency, EnumToString(positionType), ticket, symbol, profitLoss);

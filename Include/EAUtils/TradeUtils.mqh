@@ -257,12 +257,12 @@ void closePositionsAboveLossLimit() {
       ENUM_POSITION_TYPE positionType = (ENUM_POSITION_TYPE) PositionGetInteger(POSITION_TYPE);
       
       accountEquity = AccountInfoDouble(ACCOUNT_EQUITY);
-      lossThreshold = accountEquity * (percentageLossLimit / 100);
+      lossThreshold = accountEquity * (percentageLossLimit / 100) * -1.0;
       
       // FIXME: Not accounting for slippage
-      if(profitLoss <= (lossThreshold * -1)) {
+      if(profitLoss <= lossThreshold) {
          // Loss is over user set limit so close the position
-         commentToAppend = StringFormat("Loss %s (%d). LL %f.", positionType == POSITION_TYPE_BUY ? "Buy" : "Sell", ticket, symbol, lossThreshold * -1);
+         commentToAppend = StringFormat("Lost %s (%d). LL %.2f %s.", positionType == POSITION_TYPE_BUY ? "Buy" : "Sell", ticket, lossThreshold, accountCurrency);
          Print(commentToAppend);
          
          closePosition(magic, ticket, symbol, positionType, volume, commentToAppend, false);
@@ -271,7 +271,7 @@ void closePositionsAboveLossLimit() {
       } else if (profitLoss < 0) {
          // Still floating this loss
          totalFloatingLoss += profitLoss;
-         // PrintFormat("Floating loss on position (ticket %d) is %f %s. Running floating loss for open positions is %f %s", ticket, profitLoss, accountCurrency, totalFloatingLoss, accountCurrency);
+         // PrintFormat("Floating loss on position (ticket %d) is %.2f %s. Running floating loss for open positions is %.2f %s", ticket, profitLoss, accountCurrency, totalFloatingLoss, accountCurrency);
       }
    }
    
@@ -374,7 +374,7 @@ bool sendOrder(bool isClosingOrder) {
       // Basic validation passed so check returned result now
       // Request is completed or order placed 
       if(mTradeResult.retcode == 10009 || mTradeResult.retcode == 10008) {
-         Print("A new order has been successfully placed with Ticket#:", mTradeResult.order, ". ");
+         // Print("A new order has been successfully placed with Ticket#:", mTradeResult.order, ". ");
          
          if (!isClosingOrder) {
             if (mTradeRequest.type == ORDER_TYPE_SELL) {
