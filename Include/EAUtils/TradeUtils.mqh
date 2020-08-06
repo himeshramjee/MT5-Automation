@@ -1,12 +1,13 @@
 input group "Positioning (All strategies)";
-input double percentageLossLimit = 0.3;   // Loss limit per trade. e.g. 1 % of equity
-input int openPositionsLimit = 3;            // Open Positions Limit
-input double lotSize = 4.0;                  // Lots to Trade
-input double dailyProfitTarget = 200.0;      // Daily profit target
-input double dailyLossLimit = 400.0;         // Daily loss limit
-input bool closeEachDay = true;      // True to close open trades each day, else False
-bool tradeWithBears = true;         // True to open Sell positions, else false
-bool tradeWithBulls = true;         // True to open Buy positions, else false
+input double percentageLossLimit = 0.3;   // % loss limit per trade. e.g. 1 % of equity
+input double fixedLossLimit = 20.0;       // Fixed loss limit per trade. e.g. 20usd
+input int openPositionsLimit = 3;         // Open Positions Limit
+input double lotSize = 4.0;               // Lots to Trade
+input double dailyProfitTarget = 200.0;   // Daily profit target
+input double dailyLossLimit = 400.0;      // Daily loss limit
+input bool closeEachDay = true;           // True to close open trades each day, else False
+bool tradeWithBears = true;               // True to open Sell positions, else false
+bool tradeWithBulls = true;               // True to open Buy positions, else false
 
 // Order parameters
 MqlTradeRequest mTradeRequest;   // To be used for sending our trade requests
@@ -238,7 +239,7 @@ void closePositionsAboveLossLimit() {
    double profitLoss = 0.0;
    double volume = 0.0;
    double accountEquity = 0.0;
-   double lossThreshold = 0.0;
+   double lossLimitInCurrency = 0.0;
    
    for (int i = 0; i < openPositionCount; i++) {
       ulong ticket = PositionGetTicket(i);
@@ -257,14 +258,12 @@ void closePositionsAboveLossLimit() {
       ENUM_POSITION_TYPE positionType = (ENUM_POSITION_TYPE) PositionGetInteger(POSITION_TYPE);
       
       accountEquity = AccountInfoDouble(ACCOUNT_EQUITY);
-      lossThreshold = accountEquity * (percentageLossLimit / 100) * -1.0;
+      lossLimitInCurrency = fixedLossLimit > 0 ? fixedLossLimit * -1 : (percentageLossLimit > 0 ? accountEquity * (percentageLossLimit / 100) * -1.0 : 0);
       
       // FIXME: Not accounting for slippage
-      // if(profitLoss <= lossThreshold) {
-      if (profitLoss <= -20.0) {
+      if (profitLoss <= lossLimitInCurrency) {
          // Loss is over user set limit so close the position
-         // commentToAppend = StringFormat("Lost %s (%d). LL %.2f %s.", positionType == POSITION_TYPE_BUY ? "Buy" : "Sell", ticket, lossThreshold, accountCurrency);
-         commentToAppend = StringFormat("Lost %s (%d). P/L %.2f %s.", positionType == POSITION_TYPE_BUY ? "Buy" : "Sell", ticket, profitLoss, accountCurrency);
+         commentToAppend = StringFormat("Lost %s (%d). LL %.2f %s", positionType == POSITION_TYPE_BUY ? "Buy" : "Sell", ticket, lossLimitInCurrency, accountCurrency);
          Print(commentToAppend);
          
          closePosition(magic, ticket, symbol, positionType, volume, commentToAppend, false);

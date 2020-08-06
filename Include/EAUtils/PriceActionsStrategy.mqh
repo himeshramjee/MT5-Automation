@@ -140,83 +140,12 @@ void closeS5ITMPositions() {
       if (symbol != _Symbol) {
          // This position was opened by something else. Possibly this EA but on another symbol.
          continue;
-      } else {
-         if (loggingEnabled && profitLoss < 5.0) {
-            datetime openTime = (datetime) PositionGetInteger(POSITION_TIME);
-            datetime currentTime = TimeCurrent();
-            int minutesPassed = (int) ((currentTime - openTime) / 60);
-            static int lastMinutePassed = minutesPassed - 1;
-            if (minutesPassed != lastMinutePassed && minutesPassed % 2 == 0) { // No need to log on every tick. But wait there's 1 tick every second so check that we've already processed the current minute.
-               PrintFormat("Checking if ticket for %s has reached minimum TP value of %.2f %s - %s, Ticket: %d. Symbol: %s. Profit/Loss: %.2f.", _Symbol, s5MinimumTakeProfitValue, accountCurrency, EnumToString(positionType), ticket, symbol, profitLoss);
-            }
-            lastMinutePassed = minutesPassed;
-         }
       }
 
       if(profitLoss >= s5MinimumTakeProfitValue) {
          PrintFormat("Close profitable %s position for %s, Ticket: %d. Profit/Loss: %.2f.", positionType == POSITION_TYPE_BUY ? "BUY" : "SELL", symbol, ticket, profitLoss);
          
          closePosition(magic, ticket, symbol, positionType, volume, StringFormat("S5 profit (%d).", ticket), true);
-      } else {
-         // wait bit longer
-         // PrintFormat("Profitable position for %s has not reached minimum TP value of %f %s - %s, Ticket: %d. Symbol: %s. Profit/Loss: %f.", _Symbol, s5MinimumTakeProfitValue, accountCurrency, EnumToString(positionType), ticket, symbol, profitLoss);
-      }
-   }
-}
-
-bool runS5TimerStrategy() {   
-   if (symbolPriceData[1].close >= latestTickPrice.bid) {   // Bearish candle
-      setupGenericTradeRequest();
-      mTradeRequest.type = ORDER_TYPE_SELL;
-      mTradeRequest.price = NormalizeDouble(latestTickPrice.bid, _Digits);
-      mTradeRequest.comment = mTradeRequest.comment + "s5 Timed Sell conditions.";
-      return true;
-   }
-
-   if (symbolPriceData[1].close <= latestTickPrice.ask) {    // Bullish candle
-      setupGenericTradeRequest();
-      mTradeRequest.type = ORDER_TYPE_BUY;
-      mTradeRequest.price = NormalizeDouble(latestTickPrice.ask, _Digits);
-      mTradeRequest.comment = mTradeRequest.comment + "s5 Timed Buy conditions.";
-      return true;
-   }
-   
-   return false;
-}
-
-void closeS5TimedPositions() {
-   int openPositionCount = PositionsTotal(); // number of open positions
-   
-   for (int i = 0; i < openPositionCount; i++) {
-      ulong ticket = PositionGetTicket(i); // This method selects the required position which makes the subsequent calls apply to the expected position. Something like a global pointer to the current record being queried.      
-      string symbol = PositionGetSymbol(i);      
-
-      if (symbol != _Symbol) {
-         // This position was opened by something else. Possibly this EA but on another symbol.
-         return;
-      }
-      
-      ENUM_POSITION_TYPE positionType = (ENUM_POSITION_TYPE) PositionGetInteger(POSITION_TYPE);
-      double profitLoss = PositionGetDouble(POSITION_PROFIT);
-      ulong  magic = PositionGetInteger(POSITION_MAGIC);
-      double volume = PositionGetDouble(POSITION_VOLUME);
-
-      datetime openTime = (datetime) PositionGetInteger(POSITION_TIME);
-      datetime currentTime = TimeCurrent();
-      int minutesPassed = (int) ((currentTime - openTime) / 60);
-      static int lastMinutePassed = minutesPassed - 1;
-
-      PrintFormat("%d mins passed for ticket %d.", minutesPassed, ticket);
-
-      if (minutesPassed != lastMinutePassed && minutesPassed % 2 == 0) { // No need to log on every tick. But wait there's 1 tick every second so check that we've already processed the current minute.
-         PrintFormat("Checking if ticket for %s has reached minimum TP value of %f %s - %s, Ticket: %d. Symbol: %s. Profit/Loss: %f.", _Symbol, s5MinimumTakeProfitValue, accountCurrency, EnumToString(positionType), ticket, symbol, profitLoss);
-      }
-      lastMinutePassed = minutesPassed;
-
-      if(profitLoss >= 0 || minutesPassed > 12) {
-         PrintFormat("Close profitable position for %s - %s, Ticket: %d. Symbol: %s. Profit/Loss: %f.", _Symbol, EnumToString(positionType), ticket, symbol, profitLoss);
-         
-         closePosition(magic, ticket, symbol, positionType, volume, "s5 profit conditions.", true);
       } else {
          // wait bit longer
          // PrintFormat("Profitable position for %s has not reached minimum TP value of %f %s - %s, Ticket: %d. Symbol: %s. Profit/Loss: %f.", _Symbol, s5MinimumTakeProfitValue, accountCurrency, EnumToString(positionType), ticket, symbol, profitLoss);
@@ -242,39 +171,6 @@ bool runPriceActionsStrategy() {
 
    if (runS5BuyStrategy()){
       return tradeWithBulls;
-   }
-   
-   return false;
-}
-
-bool runPriceActionsStrategy1() {
-   if (!populateS5Prices()) {
-      return false;
-   }
-   
-   datetime currentOpeningTime = (datetime) SeriesInfoInteger(Symbol(), Period(), SERIES_LASTBAR_DATE);
-   datetime currentTime = TimeCurrent();
-   int minutesPassed = (int) ((currentTime - currentOpeningTime) / 60);
-   
-   if (minutesPassed < 5) {
-      // Too early to place an order
-      return false;
-   }
-   
-   if (minutesPassed == 12) {
-      // x minutes have passed so close before bar completes and before I try and open new orders
-      closeS5TimedPositions();
-   }
-
-   if (!newOrdersPermitted()){
-      // Position limit, trading disabled or daily profit target met
-      return false;
-   }
-   
-   if (minutesPassed == 5) {
-      // Place new order
-      runS5TimerStrategy();
-      return true;
    }
    
    return false;
