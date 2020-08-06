@@ -220,7 +220,9 @@ void printExitSummary(){
    
    double accountBalance = NormalizeDouble(AccountInfoDouble(ACCOUNT_BALANCE), 2);
    int totalDays = profitableDaysCounter + lossDaysCounter;
-   PrintFormat("A total of %d days were traded with %d being profitable and %d ending with losses. Averaging %.2f %s over the period.", totalDays, profitableDaysCounter, lossDaysCounter, accountBalance / totalDays, accountCurrency);
+   if (totalDays > 0) {
+      PrintFormat("A total of %d days were traded with %d being profitable and %d ending with losses. Averaging %.2f %s over the period.", totalDays, profitableDaysCounter, lossDaysCounter, accountBalance / totalDays, accountCurrency);
+   }
    PrintFormat("A total of %d orders failed to be placed. A total of %d Sell orders and %d Buy orders were placed.", totalFailedOrderCount, totalSellOrderCount, totalBuyOrderCount);
    PrintFormat("Closed %d positions that were above loss limit threshold of %.2f%% of Account Equity per trade. There are currently %d open positions.", lossLimitPositionsClosedCount, percentageLossLimit, PositionsTotal());
    PrintFormat("Max used margin was %f %s. Max floating loss was %f %s. Orders missed due to insufficient margin was %d.", maxUsedMargin, accountCurrency, maxFloatingLoss, accountCurrency, insufficientMarginCount);
