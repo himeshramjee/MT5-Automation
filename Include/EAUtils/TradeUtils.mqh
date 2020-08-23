@@ -23,6 +23,9 @@ int totalBuyOrderCount = 0;
 int totalFailedOrderCount = 0;
 int profitableDaysCounter = 0;
 int lossDaysCounter = 0;
+double leastProfitOnADay = 9999999.0;
+double highestLossOnADay = -9999999.0;
+int daysBelowProfitTargetCounter = 0;
 
 bool accountHasSufficientMargin(string symb, double lots, ENUM_ORDER_TYPE type) {
    double price = latestTickPrice.ask;
@@ -126,14 +129,24 @@ bool checkDailyTargetsAreOpen() {
    static bool targetsMet = false;
    static double accountBalanceAtStart = NormalizeDouble(AccountInfoDouble(ACCOUNT_BALANCE), 2);
    double currentAccountEquity = NormalizeDouble(AccountInfoDouble(ACCOUNT_EQUITY), 2);
-   double netProfit = currentAccountEquity - accountBalanceAtStart;
+   double profitLoss = currentAccountEquity - accountBalanceAtStart;
    
    if (isDayEnding() && !dayIsClosed) {
-      PrintFormat("Trade targets: End of trading day. P/L: %.2f %s.", netProfit, accountCurrency);
-      if (netProfit > 0) {
+      PrintFormat("Trade targets: End of trading day. P/L: %.2f %s.", profitLoss, accountCurrency);
+      
+      if (profitLoss > 0) {
          profitableDaysCounter++;
+         if (profitLoss < dailyProfitTarget) {
+            daysBelowProfitTargetCounter++;
+         }
+         if (profitLoss < leastProfitOnADay) {
+            leastProfitOnADay = profitLoss;
+         }
       } else {
          lossDaysCounter++;
+         if (profitLoss > highestLossOnADay) {
+            highestLossOnADay = profitLoss;
+         }
       }
       
       if (closeEachDay) {
@@ -144,7 +157,7 @@ bool checkDailyTargetsAreOpen() {
       
       // Reset for new day
       accountBalanceAtStart = NormalizeDouble(AccountInfoDouble(ACCOUNT_BALANCE), 2);      
-      netProfit = currentAccountEquity - accountBalanceAtStart;
+      profitLoss = currentAccountEquity - accountBalanceAtStart;
       targetsMet = false;
       dayIsClosed = true;
       PrintFormat("\nTrade targets: Next trading day with start with %.2f %s as opening balance.", accountBalanceAtStart, accountCurrency);
@@ -158,11 +171,11 @@ bool checkDailyTargetsAreOpen() {
       return true;
    }
    
-   if (netProfit >= dailyProfitTarget) {
+   if (profitLoss >= dailyProfitTarget) {
       PrintFormat("\nTrade targets: Trading paused. Daily profit target of %.2f %s has been met. Closing all positions.", dailyProfitTarget, accountCurrency);
       targetsMet = true;      
       closeAllPositions();
-   } else if (netProfit <= (dailyLossLimit * -1)) {
+   } else if (profitLoss <= (dailyLossLimit * -1)) {
       PrintFormat("\nTrade targets: Trading paused as daily loss limit of %.2f %s has been reached. Closing all positions.", dailyLossLimit * -1, accountCurrency);
       targetsMet = true;      
       closeAllPositions();
