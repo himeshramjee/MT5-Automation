@@ -34,11 +34,7 @@ bool runS5SellStrategy() {
    if (!isCurrentCandleBearish()) {
       return false;
    }
-   
-   if (valueOfOpenPositionsForSymbol(_Symbol) < 0) {
-      return false;
-   }
-   
+      
    if (!s5SellCondition1SignalOn) {
       s5SellCondition1SignalOn = true;
       s5SellCondition1TimeAtSignal = TimeCurrent();
@@ -46,10 +42,10 @@ bool runS5SellStrategy() {
       
       // Add a visual cue
       string visualCueName = StringFormat("%s s5 signal at %s. Bearish count: %d.", signalNamePrefix, (string)s5SellCondition1TimeAtSignal, bearishPatternsFoundCounter);
-      ObjectCreate(0, visualCueName, OBJ_ARROW_DOWN, 0, s5SellCondition1TimeAtSignal, latestTickPrice.bid - (50 * Point()));
+      ObjectCreate(0, visualCueName, OBJ_ARROW_DOWN, 0, s5SellCondition1TimeAtSignal, latestTickPrice.bid - (100 * Point()));
       ObjectSetInteger(0, visualCueName, OBJPROP_ANCHOR, ANCHOR_TOP);
       ObjectSetInteger(0, visualCueName, OBJPROP_ALIGN, ALIGN_CENTER);
-      ObjectSetInteger(0, visualCueName, OBJPROP_FILL, true);
+      // ObjectSetInteger(0, visualCueName, OBJPROP_FILL, true);
       ObjectSetInteger(0, visualCueName, OBJPROP_COLOR, clrRed);
       ObjectSetInteger(0, visualCueName, OBJPROP_SELECTABLE, 1);
       registerChartObject(visualCueName);
@@ -88,10 +84,6 @@ bool runS5BuyStrategy() {
       return false;
    }
    
-   if (valueOfOpenPositionsForSymbol(_Symbol) < 0) {
-      return false;
-   }
-   
    if (!s5BuyCondition1SignalOn) {
       s5BuyCondition1SignalOn = true;
       s5BuyCondition1TimeAtSignal = TimeCurrent();
@@ -99,10 +91,10 @@ bool runS5BuyStrategy() {
       
       // Add a visual cue
       string visualCueName = StringFormat("%s s5 signalled at %s. Bull count: %d.", signalNamePrefix, (string)s5BuyCondition1TimeAtSignal, bullishPatternsFoundCounter);
-      ObjectCreate(0, visualCueName, OBJ_ARROW_UP, 0, s5BuyCondition1TimeAtSignal, latestTickPrice.ask - (50 * Point()));
+      ObjectCreate(0, visualCueName, OBJ_ARROW_UP, 0, s5BuyCondition1TimeAtSignal, latestTickPrice.ask - (100 * Point()));
       ObjectSetInteger(0, visualCueName, OBJPROP_ANCHOR, ANCHOR_TOP);
       ObjectSetInteger(0, visualCueName, OBJPROP_ALIGN, ALIGN_CENTER);
-      ObjectSetInteger(0, visualCueName, OBJPROP_FILL, true);
+      // ObjectSetInteger(0, visualCueName, OBJPROP_FILL, true);
       ObjectSetInteger(0, visualCueName, OBJPROP_COLOR, clrBlue);
       ObjectSetInteger(0, visualCueName, OBJPROP_SELECTABLE, 1);
       registerChartObject(visualCueName);
@@ -175,3 +167,15 @@ bool runPriceActionsStrategy() {
    
    return false;
 }
+
+/*
+   Test notes
+   S5: Price Action, 15M Chart, 20EMA, 5usd loss limit per trade, 3 Open position limit, 2 Lots per trade, Daily P/L targets 9999, Close each day, TP at 23usd, Don't force trend alignment
+   07/15 -> Start with 200usd and ended day with 207.85, no stop out
+   08/07 -> Start with 200usd and ended day with -217.21, 97% stop out ***NEGATIVE BALANCE - Investigate more***
+         -> Rest of Aug is profitable each day.
+   01/01/2020 till 24/08/2020 -> Start with 200usd and ended period with 100455.29, no stop out, 
+                              -> 230 days traded, 224 profitable days 6 loss days, 
+                              -> Avg 436.76 USD per day, Lowest profit for a day was 20.15, Highest loss for a day was -4.72usd
+                              -> No failed orders, 7788 Sell orders placed, 9342 Buy orders placed, 10277 orders hit SL of 5 usd, 374 signals missed due to insufficient free margin.
+*/

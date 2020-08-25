@@ -121,6 +121,13 @@ void calculateMaxUsedMargin() {
 }
 
 bool newOrdersPermitted() {
+      
+   bool openPositionsExist = false;
+   double valueOfOpenPositionsForSymbol = valueOfOpenPositionsForSymbol(_Symbol, openPositionsExist);
+   if (openPositionsExist && valueOfOpenPositionsForSymbol <= 5) {
+      return false;
+   }
+
    return tradingEnabled && !checkDailyTargetsAreOpen() && !openPositionLimitReached();
 }
 
@@ -202,8 +209,8 @@ void closeAllPositions() {
    }
 }
 
-double valueOfOpenPositionsForSymbol(string symbol) {
-   // int openPositionsForSymbolCount = 0;
+double valueOfOpenPositionsForSymbol(string symbol, bool &openPositionsExit) {
+   int openPositionsForSymbolCount = 0;
    int totalPositions = PositionsTotal();
    double totalProfitLossForSymbol = 0.0;
    
@@ -211,10 +218,12 @@ double valueOfOpenPositionsForSymbol(string symbol) {
       ulong ticket = PositionGetTicket(i);
       
       if (EAMagic == PositionGetInteger(POSITION_MAGIC) && symbol == PositionGetSymbol(i)) {
-         // openPositionsForSymbolCount++;
+         openPositionsForSymbolCount++;
          totalProfitLossForSymbol += PositionGetDouble(POSITION_PROFIT);
       }
    }
+   
+   openPositionsExit = openPositionsForSymbolCount > 0;
    
    return totalProfitLossForSymbol;
 }

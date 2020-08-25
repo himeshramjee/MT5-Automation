@@ -221,8 +221,8 @@ void printExitSummary(){
    double accountBalance = NormalizeDouble(AccountInfoDouble(ACCOUNT_BALANCE), 2);
    int totalDays = profitableDaysCounter + lossDaysCounter;
    if (totalDays > 0) {
-      PrintFormat("A total of %d days were traded with %d being profitable, %d ending below profit target and %d ending with losses.", totalDays, profitableDaysCounter, daysBelowProfitTargetCounter, lossDaysCounter);
-      PrintFormat("Average %.2f %s P/L per day. Lowest profit on a day was %.2f %s. Highest loss on a day was %.2f %s.", accountBalance / totalDays, accountCurrency, leastProfitOnADay, accountCurrency, highestLossOnADay, accountCurrency);
+      PrintFormat("%d days traded. %d profitable, %d ending below profit target and %d ending with losses.", totalDays, profitableDaysCounter, daysBelowProfitTargetCounter, lossDaysCounter);
+      PrintFormat("Average %.2f %s P/L per day. Lowest profit to close a day was %.2f %s. Highest loss to close a day was %.2f %s.", accountBalance / totalDays, accountCurrency, leastProfitOnADay, accountCurrency, highestLossOnADay == -9999999 ? 0 : highestLossOnADay, accountCurrency);
    }
    PrintFormat("A total of %d orders failed to be placed. A total of %d Sell orders and %d Buy orders were placed.", totalFailedOrderCount, totalSellOrderCount, totalBuyOrderCount);
    

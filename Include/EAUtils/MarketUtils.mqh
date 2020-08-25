@@ -126,7 +126,7 @@ void scanForBearishPriceActionPatterns() {
    int priceOffset = 1;
    
    // Price line at which to display the visual que
-   double price = symbolPriceData[priceOffset].high;
+   double price = symbolPriceData[priceOffset].high + (200 * Point());
    // double price = latestTickPrice.bid;
 
    // Time line at which to display the visual que
@@ -175,7 +175,7 @@ void scanForBullishPriceActionPatterns() {
    int priceOffset = 1;
    
    // Price line at which to display the visual que
-   double price = symbolPriceData[priceOffset].high;
+   double price = symbolPriceData[priceOffset].high + (200 * Point());
    // double price = latestTickPrice.bid;
 
    // Time line at which to display the visual que
