@@ -1,4 +1,5 @@
 input group "Positioning (All strategies)";
+input datetime dontTradeUntilDatetime;    // Start time for live trading
 input double percentageLossLimit = 0.3;   // % loss limit per trade. e.g. 1 % of equity
 input double fixedLossLimit = 20.0;       // Fixed loss limit per trade. e.g. 20usd
 input int openPositionsLimit = 3;         // Open Positions Limit
@@ -121,7 +122,11 @@ void calculateMaxUsedMargin() {
 }
 
 bool newOrdersPermitted() {
-      
+   datetime timeNow = TimeCurrent();
+   if (timeNow < dontTradeUntilDatetime) {
+      return false;
+   }
+   
    bool openPositionsExist = false;
    double valueOfOpenPositionsForSymbol = valueOfOpenPositionsForSymbol(_Symbol, openPositionsExist);
    if (openPositionsExist && valueOfOpenPositionsForSymbol <= 5) {

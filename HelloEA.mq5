@@ -31,6 +31,7 @@ input ENUM_HELLOEA_STRATEGIES selectedEAStrategy = ENUM_HELLOEA_STRATEGIES::PRIC
 int      accountLeverage = (int) AccountInfoInteger(ACCOUNT_LEVERAGE);
 string   accountCurrency = AccountInfoString(ACCOUNT_CURRENCY);
 double   accountMarginLevel = AccountInfoDouble(ACCOUNT_MARGIN_LEVEL);
+double   accountStartBalance = NormalizeDouble(AccountInfoDouble(ACCOUNT_BALANCE), 2);
 
 bool tradingEnabled = true;  // True to enable bot trading, false to only signal
 
@@ -221,8 +222,8 @@ void printExitSummary(){
    double accountBalance = NormalizeDouble(AccountInfoDouble(ACCOUNT_BALANCE), 2);
    int totalDays = profitableDaysCounter + lossDaysCounter;
    if (totalDays > 0) {
-      PrintFormat("%d days traded. %d profitable, %d ending below profit target and %d ending with losses.", totalDays, profitableDaysCounter, daysBelowProfitTargetCounter, lossDaysCounter);
-      PrintFormat("Average %.2f %s P/L per day. Lowest profit to close a day was %.2f %s. Highest loss to close a day was %.2f %s.", accountBalance / totalDays, accountCurrency, leastProfitOnADay, accountCurrency, highestLossOnADay == -9999999 ? 0 : highestLossOnADay, accountCurrency);
+      PrintFormat("%d days traded. %d profitable, %d hitting profit target, %d ending below profit target and %d ending with losses.", totalDays, profitableDaysCounter, profitableDaysCounter - daysBelowProfitTargetCounter, daysBelowProfitTargetCounter, lossDaysCounter);
+      PrintFormat("Average %.2f %s P/L per day. Lowest profit to close a day was %.2f %s. Highest loss to close a day was %.2f %s.", (accountBalance - accountStartBalance) / totalDays, accountCurrency, leastProfitOnADay, accountCurrency, highestLossOnADay == -9999999 ? 0 : highestLossOnADay, accountCurrency);
    }
    PrintFormat("A total of %d orders failed to be placed. A total of %d Sell orders and %d Buy orders were placed.", totalFailedOrderCount, totalSellOrderCount, totalBuyOrderCount);
    

@@ -172,7 +172,7 @@ bool runPriceActionsStrategy() {
    Test notes
    S5: Price Action, 15M Chart, 20EMA, 5usd loss limit per trade, 3 Open position limit, 2 Lots per trade, Daily P/L targets 9999, Close each day, TP at 23usd, Don't force trend alignment
    07/15 -> Start with 200usd and ended day with 207.85, no stop out
-   08/07 -> Start with 200usd and ended day with -217.21, 97% stop out ***NEGATIVE BALANCE - Investigate more***
+   07/08 -> Start with 200usd and ended day with -217.21, 97% stop out ***NEGATIVE BALANCE - Investigate more***
          -> Rest of Aug is profitable each day.
    01/01/2020 till 24/08/2020 -> Start with 200usd and ended period with 100455.29, no stop out, 
                               -> 230 days traded, 224 profitable days 6 loss days, 
