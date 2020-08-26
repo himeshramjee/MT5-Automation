@@ -1,14 +1,15 @@
 input group "Positioning (All strategies)";
-input datetime dontTradeUntilDatetime;    // Start time for live trading
-input double percentageLossLimit = 0.3;   // % loss limit per trade. e.g. 1 % of equity
-input double fixedLossLimit = 5.0;       // Fixed loss limit per trade. e.g. 20usd
-input int openPositionsLimit = 3;         // Open Positions Limit
-input double lotSize = 2.0;               // Lots to Trade
-input double dailyProfitTarget = 9999.0;   // Daily profit target
-input double dailyLossLimit = 9999.0;      // Daily loss limit
-input bool closeEachDay = true;           // True to close open trades each day, else False
-bool tradeWithBears = true;               // True to open Sell positions, else false
-bool tradeWithBulls = true;               // True to open Buy positions, else false
+input datetime dontTradeUntilDatetime;       // Start time for live trading
+input double percentageLossLimit = 0.3;      // % loss limit per trade. e.g. 1 % of equity
+input double fixedLossLimit = 5.0;           // Fixed loss limit per trade. e.g. 20usd
+input int openPositionsLimit = 3;            // Open Positions Limit
+input double lotSize = 2.0;                  // Lots to Trade
+input double dailyProfitTarget = 9999.0;     // Daily profit target
+input double dailyLossLimit = 9999.0;        // Daily loss limit
+input double minimumRequiredEquity = 250.0;  // Minimum required equity to trade
+input bool closeEachDay = true;              // True to close open trades each day, else False
+bool tradeWithBears = true;                  // True to open Sell positions, else false
+bool tradeWithBulls = true;                  // True to open Buy positions, else false
 
 // Order parameters
 MqlTradeRequest mTradeRequest;   // To be used for sending our trade requests
@@ -37,7 +38,7 @@ bool accountHasSufficientMargin(string symb, double lots, ENUM_ORDER_TYPE type) 
 
    //--- values of the required and free margin
    double requiredMargin, freeMargin = AccountInfoDouble(ACCOUNT_MARGIN_FREE);
-   accountMarginLevel = AccountInfoDouble(ACCOUNT_MARGIN_LEVEL);
+   double accountMarginLevel = AccountInfoDouble(ACCOUNT_MARGIN_LEVEL);
    
    //--- call of the checking function   
    if(!OrderCalcMargin(type, _Symbol, lots, price, requiredMargin)) {
@@ -122,26 +123,41 @@ void calculateMaxUsedMargin() {
 }
 
 bool newOrdersPermitted() {
+   // Check user specified time to start trading
    datetime timeNow = TimeCurrent();
    if (timeNow < dontTradeUntilDatetime) {
       return false;
    }
    
+   // Check value of open positions
    bool openPositionsExist = false;
    double valueOfOpenPositionsForSymbol = valueOfOpenPositionsForSymbol(_Symbol, openPositionsExist);
    if (openPositionsExist && valueOfOpenPositionsForSymbol <= 5) {
       return false;
    }
 
-   return tradingEnabled && !checkDailyTargetsAreOpen() && !openPositionLimitReached();
+   // Check minimum required equity
+   double currentAccountEquity = NormalizeDouble(AccountInfoDouble(ACCOUNT_EQUITY), 2);
+   static bool equityProtectionIsActive = false;
+   if (!equityProtectionIsActive && currentAccountEquity < minimumRequiredEquity) {
+      equityProtectionIsActive = true;
+      PrintFormat("Equity protection enabled. Minimum Required Equity of %.2f %s isn't available. Current equity is %.2f %s. ", minimumRequiredEquity, accountCurrency, currentAccountEquity, accountCurrency);
+   }
+  
+   if (equityProtectionIsActive && currentAccountEquity > minimumRequiredEquity) {
+      PrintFormat("Equity protection disabled. Minimum Required Equity of %.2f %s is now available. Current equity is %.2f %s. ", minimumRequiredEquity, accountCurrency, currentAccountEquity, accountCurrency);
+      equityProtectionIsActive = false;
+   }
+
+   return tradingEnabled && !equityProtectionIsActive && checkDailyTargetsAreOpen() && !openPositionLimitReached();
 }
 
 bool checkDailyTargetsAreOpen() {
    static bool dayIsClosed = false;
    static bool targetsMet = false;
-   static double accountBalanceAtStart = NormalizeDouble(AccountInfoDouble(ACCOUNT_BALANCE), 2);
+   static double accountBalanceAtStartOfDay = NormalizeDouble(AccountInfoDouble(ACCOUNT_BALANCE), 2);
    double currentAccountEquity = NormalizeDouble(AccountInfoDouble(ACCOUNT_EQUITY), 2);
-   double profitLoss = currentAccountEquity - accountBalanceAtStart;
+   double profitLoss = currentAccountEquity - accountBalanceAtStartOfDay;
    
    if (isDayEnding() && !dayIsClosed) {
       PrintFormat("Trade targets: End of trading day. P/L: %.2f %s.", profitLoss, accountCurrency);
@@ -155,9 +171,12 @@ bool checkDailyTargetsAreOpen() {
             leastProfitOnADay = profitLoss;
          }
       } else {
-         lossDaysCounter++;
-         if (profitLoss > highestLossOnADay) {
-            highestLossOnADay = profitLoss;
+         if (profitLoss < 0) {
+            lossDaysCounter++;
+            
+            if (profitLoss > highestLossOnADay) {
+               highestLossOnADay = profitLoss;
+            }
          }
       }
       
@@ -165,35 +184,37 @@ bool checkDailyTargetsAreOpen() {
          closeAllPositions();
       }
       
-      dayIsClosed = true;
-      
       // Reset for new day
-      accountBalanceAtStart = NormalizeDouble(AccountInfoDouble(ACCOUNT_BALANCE), 2);      
-      profitLoss = currentAccountEquity - accountBalanceAtStart;
-      targetsMet = false;
+      accountBalanceAtStartOfDay = NormalizeDouble(AccountInfoDouble(ACCOUNT_BALANCE), 2);      
       dayIsClosed = true;
-      PrintFormat("\nTrade targets: Next trading day with start with %.2f %s as opening balance.", accountBalanceAtStart, accountCurrency);
-   }
-   
-   if (isNewDay()) {
+      targetsMet = false;
+      PrintFormat("\nTrade targets: Next trading day with start with %.2f %s as opening balance.", accountBalanceAtStartOfDay, accountCurrency);
+      
+      return false;
+   } else if (dayIsClosed && isNewDay()) {
+      // Reopen the day. This is needed in case where this method is still called for each tick rather than each candle bar for example.
       dayIsClosed = false;
+      targetsMet = false;
    }
-   
-   if (targetsMet || dayIsClosed) {
-      return true;
+
+   // EA keeps running waiting for new day so don't keep checking targets   
+   if (targetsMet) {
+      return false;
    }
    
    if (profitLoss >= dailyProfitTarget) {
       PrintFormat("\nTrade targets: Trading paused. Daily profit target of %.2f %s has been met. Closing all positions.", dailyProfitTarget, accountCurrency);
-      targetsMet = true;      
+      targetsMet = true;
       closeAllPositions();
+      return false;
    } else if (profitLoss <= (dailyLossLimit * -1)) {
       PrintFormat("\nTrade targets: Trading paused as daily loss limit of %.2f %s has been reached. Closing all positions.", dailyLossLimit * -1, accountCurrency);
-      targetsMet = true;      
+      targetsMet = true;
       closeAllPositions();
+      return false;
    }
    
-   return targetsMet;
+   return true;
 }
 
 void closeAllPositions() {
