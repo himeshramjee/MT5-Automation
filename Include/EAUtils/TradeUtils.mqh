@@ -203,12 +203,12 @@ bool checkDailyTargetsAreOpen() {
    }
    
    if (profitLoss >= dailyProfitTarget) {
-      PrintFormat("\nTrade targets: Trading paused. Daily profit target of %.2f %s has been met. Closing all positions.", dailyProfitTarget, accountCurrency);
+      PrintFormat("\nTrade targets: Trading paused. Daily profit target of %.2f %s has been met. Closing all positions as current profit is %.2f %s.", dailyProfitTarget, accountCurrency, profitLoss, accountCurrency);
       targetsMet = true;
       closeAllPositions();
       return false;
    } else if (profitLoss <= (dailyLossLimit * -1)) {
-      PrintFormat("\nTrade targets: Trading paused as daily loss limit of %.2f %s has been reached. Closing all positions.", dailyLossLimit * -1, accountCurrency);
+      PrintFormat("\nTrade targets: Trading paused as daily loss limit of %.2f %s has been reached. Closing all positions as current loss is %.2f %s.", dailyLossLimit * -1, accountCurrency, profitLoss, accountCurrency);
       targetsMet = true;
       closeAllPositions();
       return false;
