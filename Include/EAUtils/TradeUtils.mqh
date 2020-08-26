@@ -29,6 +29,16 @@ double leastProfitOnADay = 9999999.0;
 double highestLossOnADay = -9999999.0;
 int daysBelowProfitTargetCounter = 0;
 
+bool initTradeUtils() {
+   Print("\nConfirming EA user configuration...");
+   PrintFormat("HelloEA won't trade until time: %s.", TimeToString(dontTradeUntilDatetime));
+   PrintFormat("Only trade if account equity is > %.2f %s.", minimumRequiredEquity, accountCurrency);
+   PrintFormat("Trading for the day will stop once daily profit limit of %.2f %s is reached.", dailyProfitTarget, accountCurrency);
+   PrintFormat("Trading for the day will stop once daily loss limit of %.2f %s is reached.", dailyLossLimit, accountCurrency);
+   
+   return true;
+}
+
 bool accountHasSufficientMargin(string symb, double lots, ENUM_ORDER_TYPE type) {
    double price = latestTickPrice.ask;
    

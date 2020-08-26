@@ -38,11 +38,7 @@ bool tradingEnabled = true;  // True to enable bot trading, false to only signal
 //| Expert initialization function                                   |
 //+------------------------------------------------------------------+
 int OnInit() {
-   if (!initMarketUtils()) {
-      return INIT_FAILED;
-   }
-   
-   if (!initEAUtils()) {
+   if (!initMarketUtils() || !initEAUtils() || !initTradeUtils()) {
       return INIT_FAILED;
    }
    
