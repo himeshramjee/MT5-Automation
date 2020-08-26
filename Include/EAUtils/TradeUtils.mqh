@@ -1,11 +1,11 @@
 input group "Positioning (All strategies)";
 input datetime dontTradeUntilDatetime;    // Start time for live trading
 input double percentageLossLimit = 0.3;   // % loss limit per trade. e.g. 1 % of equity
-input double fixedLossLimit = 20.0;       // Fixed loss limit per trade. e.g. 20usd
+input double fixedLossLimit = 5.0;       // Fixed loss limit per trade. e.g. 20usd
 input int openPositionsLimit = 3;         // Open Positions Limit
-input double lotSize = 4.0;               // Lots to Trade
-input double dailyProfitTarget = 200.0;   // Daily profit target
-input double dailyLossLimit = 400.0;      // Daily loss limit
+input double lotSize = 2.0;               // Lots to Trade
+input double dailyProfitTarget = 9999.0;   // Daily profit target
+input double dailyLossLimit = 9999.0;      // Daily loss limit
 input bool closeEachDay = true;           // True to close open trades each day, else False
 bool tradeWithBears = true;               // True to open Sell positions, else false
 bool tradeWithBulls = true;               // True to open Buy positions, else false

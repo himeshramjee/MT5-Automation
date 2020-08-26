@@ -1,5 +1,5 @@
 input group "S5: Strategy 5 - Price Actions"
-input double   s5MinimumTakeProfitValue = 22.0;     // Value (in currency) at which to Take Profit
+input double   s5MinimumTakeProfitValue = 23.0;     // Value (in currency) at which to Take Profit
 input bool     s5TradeWithTrendOnly = false;       // True if new positions must follow trend direction
 
 bool initPriceActionsIndicators() {
@@ -167,15 +167,3 @@ bool runPriceActionsStrategy() {
    
    return false;
 }
-
-/*
-   Test notes
-   S5: Price Action, 15M Chart, 20EMA, 5usd loss limit per trade, 3 Open position limit, 2 Lots per trade, Daily P/L targets 9999, Close each day, TP at 23usd, Don't force trend alignment
-   07/15 -> Start with 200usd and ended day with 207.85, no stop out
-   07/08 -> Start with 200usd and ended day with -217.21, 97% stop out ***NEGATIVE BALANCE - Investigate more***
-         -> Rest of Aug is profitable each day.
-   01/01/2020 till 24/08/2020 -> Start with 200usd and ended period with 100455.29, no stop out, 
-                              -> 230 days traded, 224 profitable days 6 loss days, 
-                              -> Avg 436.76 USD per day, Lowest profit for a day was 20.15, Highest loss for a day was -4.72usd
-                              -> No failed orders, 7788 Sell orders placed, 9342 Buy orders placed, 10277 orders hit SL of 5 usd, 374 signals missed due to insufficient free margin.
-*/

@@ -143,17 +143,12 @@ void scanForBearishPriceActionPatterns() {
       highlightPriceActionPattern("Dark Cloud Cover", time, price, clrRed);
       bearishPatternsFoundCounter++;
    }
-      
-   if (candlePatterns.CheckCandlestickPattern(ENUM_CANDLE_PATTERNS::CANDLE_PATTERN_EVENING_DOJI)) {
-      highlightPriceActionPattern("Evening Doji", time, price, clrRed);
-      bearishPatternsFoundCounter++;
-   }
-   
+
    if (candlePatterns.CheckCandlestickPattern(ENUM_CANDLE_PATTERNS::CANDLE_PATTERN_BEARISH_ENGULFING)) {
       highlightPriceActionPattern("Bear Hug", time, price, clrRed);
       bearishPatternsFoundCounter++;
    }
-   
+
    if (candlePatterns.CheckCandlestickPattern(ENUM_CANDLE_PATTERNS::CANDLE_PATTERN_BEARISH_HARAMI)) {
       highlightPriceActionPattern("Bearish Harami", time, price, clrRed);
       bearishPatternsFoundCounter++;
@@ -163,7 +158,12 @@ void scanForBearishPriceActionPatterns() {
       highlightPriceActionPattern("Evening Star", time, price, clrRed);
       bearishPatternsFoundCounter++;
    }
-   
+
+   if (candlePatterns.CheckCandlestickPattern(ENUM_CANDLE_PATTERNS::CANDLE_PATTERN_EVENING_DOJI)) {
+      highlightPriceActionPattern("Evening Doji", time, price, clrRed);
+      bearishPatternsFoundCounter++;
+   }
+
    if (candlePatterns.CheckCandlestickPattern(ENUM_CANDLE_PATTERNS::CANDLE_PATTERN_BEARISH_MEETING_LINES)) {
       highlightPriceActionPattern("Bearish Meeting Lines", time, price, clrRed);
       bearishPatternsFoundCounter++;
@@ -184,22 +184,17 @@ void scanForBullishPriceActionPatterns() {
    bullishPatternsFoundCounter = 0;
    
    if (candlePatterns.CheckCandlestickPattern(ENUM_CANDLE_PATTERNS::CANDLE_PATTERN_THREE_WHITE_SOLDIERS)) {
-      highlightPriceActionPattern("Morning Doji", time, price, clrBlue);
+      highlightPriceActionPattern("3 Green Soliders", time, price, clrBlue);
       bullishPatternsFoundCounter++;
    }
-   
+
    if (candlePatterns.CheckCandlestickPattern(ENUM_CANDLE_PATTERNS::CANDLE_PATTERN_PIERCING_LINE)) {
       highlightPriceActionPattern("Piercing Line", time, price, clrBlue);
       bullishPatternsFoundCounter++;
    }
-   
-   if (candlePatterns.CheckCandlestickPattern(ENUM_CANDLE_PATTERNS::CANDLE_PATTERN_MORNING_DOJI)) {
-      highlightPriceActionPattern("Morning Doji", time, price, clrBlue);
-      bullishPatternsFoundCounter++;
-   }
 
    if (candlePatterns.CheckCandlestickPattern(ENUM_CANDLE_PATTERNS::CANDLE_PATTERN_BULLISH_ENGULFING)) {
-      highlightPriceActionPattern("Bullish Engulfing", time, price, clrBlue);
+      highlightPriceActionPattern("Bullish Hug", time, price, clrBlue);
       bullishPatternsFoundCounter++;
    }
 
@@ -213,6 +208,11 @@ void scanForBullishPriceActionPatterns() {
       bullishPatternsFoundCounter++;
    }
    
+   if (candlePatterns.CheckCandlestickPattern(ENUM_CANDLE_PATTERNS::CANDLE_PATTERN_MORNING_DOJI)) {
+      highlightPriceActionPattern("Morning Doji", time, price, clrBlue);
+      bullishPatternsFoundCounter++;
+   }
+
    if (candlePatterns.CheckCandlestickPattern(ENUM_CANDLE_PATTERNS::CANDLE_PATTERN_BULLISH_MEETING_LINES)) {
       highlightPriceActionPattern("Bullish Meeting Lines", time, price, clrBlue);
       bullishPatternsFoundCounter++;
