@@ -135,9 +135,9 @@ void closeS5ITMPositions() {
       }
 
       if(profitLoss >= s5MinimumTakeProfitValue) {
-         PrintFormat("Close profitable %s position for %s, Ticket: %d. Profit/Loss: %.2f.", positionType == POSITION_TYPE_BUY ? "BUY" : "SELL", symbol, ticket, profitLoss);
+         PrintFormat("Close %s %s (%d): +%.2f%s.", EnumToString(positionType), symbol, ticket, profitLoss, accountCurrency);
          
-         closePosition(magic, ticket, symbol, positionType, volume, StringFormat("S5 profit (%d).", ticket), true);
+         closePosition(magic, ticket, symbol, positionType, volume, StringFormat("S5 +%f (%d).", profitLoss, ticket), true);
       } else {
          // wait bit longer
          // PrintFormat("Profitable position for %s has not reached minimum TP value of %f %s - %s, Ticket: %d. Symbol: %s. Profit/Loss: %f.", _Symbol, s5MinimumTakeProfitValue, accountCurrency, EnumToString(positionType), ticket, symbol, profitLoss);

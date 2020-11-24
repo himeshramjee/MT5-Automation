@@ -7,14 +7,15 @@
 
 enum ENUM_HELLOEA_STRATEGIES {
    EMA_ADX_MA_TRENDS = 0,     // S1: Simple Trending using EMA and ADX
-   RSI_OBOS = 1,              // S2: RSI, OBOS, Shorts only
+   RSI_OBOS = 1,              // S2: RSI, OBOS
    RSI_SPIKES = 2,            // S3: RSI, Spikes, Shorts only
    STOCH_ICHI = 3,            // S4: Silent Stoch and Ichimoku
-   PRICE_ACTIONS = 4          // S5: Price Actions
+   PRICE_ACTIONS = 4,         // S5: Price Actions
+   EMA_TRACKER = 5            // S6: EMA Tracker
 };
 
 input group "Hello EA options";
-input ENUM_HELLOEA_STRATEGIES selectedEAStrategy = ENUM_HELLOEA_STRATEGIES::PRICE_ACTIONS;   // Selected Strategy
+input ENUM_HELLOEA_STRATEGIES selectedEAStrategy = ENUM_HELLOEA_STRATEGIES::RSI_OBOS;   // Selected Strategy
 
 #include <Controls/Button.mqh>
 
@@ -23,10 +24,11 @@ input ENUM_HELLOEA_STRATEGIES selectedEAStrategy = ENUM_HELLOEA_STRATEGIES::PRIC
 #include <EAUtils/TradeUtils.mqh>
 
 // #include <EAUtils/TrendingStrategy.mqh>
-// #include <EAUtils/RSIOBOSStrategy.mqh>
+#include <EAUtils/RSIOBOSStrategy.mqh>
 // #include <EAUtils/RSISpikeStrategy.mqh>
 // #include <EAUtils/StochimokuStrategy.mqh>
-#include <EAUtils/PriceActionsStrategy.mqh>
+// #include <EAUtils/PriceActionsStrategy.mqh>
+#include <EAUtils/EMATrackerStrategy.mqh>
 
 const int      accountLeverage = (int) AccountInfoInteger(ACCOUNT_LEVERAGE);
 const string   accountCurrency = AccountInfoString(ACCOUNT_CURRENCY);
@@ -64,9 +66,9 @@ int OnInit() {
          return INIT_FAILED;
       }*/
    } else if (selectedEAStrategy == ENUM_HELLOEA_STRATEGIES::RSI_OBOS) {
-      /*if(!initRSIOBOSIndicators()) {
+      if(!initRSIOBOSIndicators()) {
          return INIT_FAILED;
-      }*/
+      }
    } else if (selectedEAStrategy == ENUM_HELLOEA_STRATEGIES::RSI_SPIKES) {
       /*if(!initRSISpikeIndicators()) {
          return INIT_FAILED;
@@ -76,7 +78,11 @@ int OnInit() {
          return INIT_FAILED;
       }*/
    } else if (selectedEAStrategy == ENUM_HELLOEA_STRATEGIES::PRICE_ACTIONS) {
-      if (!initPriceActionsIndicators()) {
+      /*if (!initPriceActionsIndicators()) {
+         return INIT_FAILED;
+      }*/
+   } else if (selectedEAStrategy == ENUM_HELLOEA_STRATEGIES::EMA_TRACKER) {
+      if (!initEMATrackerIndicators()) {
          return INIT_FAILED;
       }
    } else {
@@ -105,13 +111,15 @@ void OnDeinit(const int reason) {
    if (selectedEAStrategy == ENUM_HELLOEA_STRATEGIES::EMA_ADX_MA_TRENDS) {
       // releaseTrendingIndicators();
    } else if (selectedEAStrategy == ENUM_HELLOEA_STRATEGIES::RSI_OBOS) {
-      // releaseRSIOBOSIndicators();
+      releaseRSIOBOSIndicators();
    } else if (selectedEAStrategy == ENUM_HELLOEA_STRATEGIES::RSI_SPIKES) {
       // releaseRSISpikeIndicators();
    } else if (selectedEAStrategy == ENUM_HELLOEA_STRATEGIES::STOCH_ICHI) {
       // releaseStochimokuIndicators();
    } else if (selectedEAStrategy == ENUM_HELLOEA_STRATEGIES::PRICE_ACTIONS) {
-      releasePriceActionsIndicators();
+      // releasePriceActionsIndicators();
+   } else if (selectedEAStrategy == ENUM_HELLOEA_STRATEGIES::EMA_TRACKER) {
+      releaseEMATrackerIndicators();
    }
 
    // FIXME: Unfortunately this makes analysing results much harder. 
@@ -136,14 +144,9 @@ void OnTick() {
       return;
    }
    
-   /*
-   if (!isNewBar()) {
-      // FIXME: This matters on the higher timeframes like M15 even where profitable positions can swing into loss before the candle closes
-      return;
-   }
-   */
-   
-   if (!handleMarketTickEvent()) {
+   bool newBarUp = isNewBar();
+      
+   if (!handleMarketTickEvent(newBarUp)) {
       ExpertRemove();
       return;
    }
@@ -157,21 +160,25 @@ void OnTick() {
          sendOrder(false);
       }*/ 
    } else if (selectedEAStrategy == ENUM_HELLOEA_STRATEGIES::RSI_OBOS) {
-      /*if (runRSIOBOSStrategy()) {
+      if (runRSIOBOSStrategy(newBarUp)) {
          sendOrder(false);
-      }*/
+      }
    } else if (selectedEAStrategy == ENUM_HELLOEA_STRATEGIES::RSI_SPIKES) {
       /*if (runRSISpikeStrategy()) {
          sendOrder(false);
-      }*/ 
+      }*/
    } else if (selectedEAStrategy == ENUM_HELLOEA_STRATEGIES::STOCH_ICHI) {
       /*if (runStochimokuStrategy()) {
          sendOrder(false);
-      }*/ 
+      }*/
    } else if (selectedEAStrategy == ENUM_HELLOEA_STRATEGIES::PRICE_ACTIONS) {
-      if (runPriceActionsStrategy()) {
+      /*if (runPriceActionsStrategy()) {
          sendOrder(false);
-      }  
+      }*/ 
+   } else if (selectedEAStrategy == ENUM_HELLOEA_STRATEGIES::EMA_TRACKER) {
+      if (runEMATrackerStrategy(newBarUp)) {
+         sendOrder(false);
+      }
    } else {
       Print("Hello EA found no valid selected strategy.");
    }

@@ -1,13 +1,15 @@
 #include <EAUtils/CandlePatterns.mqh>
 
 // Market data
-input bool              enableMarketPushNotifications = false;   // Enable market data push notifications
-
-CCandlePattern *candlePatterns;
+input bool              enableMarketPushNotifications = false;  // Enable market data push notifications
+input bool              enablePriceActionPatternScans = false;  // Show candle stick patterns
 input ENUM_TIMEFRAMES   candlePatternsTimeframe = PERIOD_M15;   // Chart timeframe to generate market signals
 input int               emaPeriod = 20;                         // EMA period
+input double            armsLengthFromEMA = 0.01;               // % price distance from EMA
+
+CCandlePattern *candlePatterns;
 long signalsChartID = 0;
-string signalNamePrefix = "Signal:";
+string signalNamePrefix = "";
 
 // Market Price quotes
 MqlRates symbolPriceData[];
@@ -74,7 +76,7 @@ bool setupCharts() {
    return true;
 }
 
-bool handleMarketTickEvent() {
+bool handleMarketTickEvent(bool newBarUp) {
    if (!populateMarketData()) {
       return false;
    }
@@ -85,9 +87,8 @@ bool handleMarketTickEvent() {
       
    checkMarketConditions();
    
-   if (isNewBar()) {
+   if (newBarUp && enablePriceActionPatternScans) {
       scanForBearishPriceActionPatterns();
-   
       scanForBullishPriceActionPatterns();
    }
    
@@ -97,7 +98,7 @@ bool handleMarketTickEvent() {
 // Return true if we have enough bars to work with, else false.
 bool checkBarCount() {
    int barCount = Bars(_Symbol, candlePatternsTimeframe);
-   if(barCount < 60) {
+   if(barCount < 200) {
       Print("EA will not activate until there are more than 60 bars. Current bar count is ", barCount, "."); // IntegerToString(barCount)
       return false;
    }
@@ -225,9 +226,6 @@ void highlightPriceActionPattern(string name, datetime time, double price, int c
    price = price + (50 * Point());
    
    ChartSetInteger(signalsChartID, CHART_BRING_TO_TOP, 0, true);
-
-   // Signal: Dark Cloud Cover near 2020.07.26 04:30 and 9222.033000
-   // Signal: Bullish Meeting Lines near 2020.07.26 04:30 and 9222.033000
    
    enableMarketPushNotifications ? SendNotification(StringFormat("%s %s", _Symbol, visualCueUniqueName)) : 0;
    
@@ -251,7 +249,12 @@ void highlightPriceActionPattern(string name, datetime time, double price, int c
 }
 
 bool checkMarketConditions() {
-   string marketConditionComment = StringFormat("%s trend is %s and %s. \nBearish Counter: %d\nBullish Counter: %d\nCandle is %s.", _Symbol, isBearishMarket() ? "bearish" : "not bearish", isBullishMarket() ? "bullish" : "not bullish", bearishPatternsFoundCounter, bullishPatternsFoundCounter, isCurrentCandleBearish() ? "bearish." : (isCurrentCandleBullish() ? "bullish" : "invalid."));
+   string marketConditionComment = StringFormat("%s trend is %s and %s. \nBearish Counter: %d\nBullish Counter: %d\nCandle is %s."
+                                                , _Symbol
+                                                , isBearishMarket() ? "bearish" : "not bearish"
+                                                , isBullishMarket() ? "bullish" : "not bullish"
+                                                , bearishPatternsFoundCounter, bullishPatternsFoundCounter
+                                                , isCurrentCandleBearish() ? "bearish." : (isCurrentCandleBullish() ? "bullish" : "invalid."));
    Comment(marketConditionComment);
    
    return true;
@@ -295,6 +298,37 @@ bool isCurrentCandleBullish() {
    return latestTickPrice.ask > symbolPriceData[1].open;
 }
 
+bool spotPriceIsAtArmsLength(bool fromBidPrice) {
+   double emaPrice = candlePatterns.MA(0);
+   bool result = false;
+   double emaMinusArmsLength;
+   
+   // EMA 10412,0997
+   // Bid 10408,4520
+   // Diff 3,6477 (0.035% from EMA)
+   
+   if (fromBidPrice) {
+      emaMinusArmsLength = emaPrice * (1 - armsLengthFromEMA / 100);
+      result = symbolPriceData[0].open <= emaMinusArmsLength;
+   } else {
+      emaMinusArmsLength = emaPrice * (1 + armsLengthFromEMA / 100);
+      result = symbolPriceData[0].open >= emaMinusArmsLength;
+   }
+   
+   if (result) {
+      string visualCueUniqueName = StringFormat("(%s) EMA: %.2f. Price: %.2f. Dist: %.2f (%.2f).", _Symbol, emaPrice, symbolPriceData[0].open, emaMinusArmsLength, armsLengthFromEMA);
+      
+      if (ObjectCreate(signalsChartID, signalNamePrefix + visualCueUniqueName, fromBidPrice ? OBJ_ARROW_SELL : OBJ_ARROW_BUY, 0, TimeCurrent(), emaPrice)) {
+         ObjectSetDouble(signalsChartID, visualCueUniqueName, OBJPROP_ANGLE, fromBidPrice ? 180.0 : 0);          // Rotate <angle> degrees counter-clockwise
+         ObjectSetInteger(signalsChartID, visualCueUniqueName, OBJPROP_ANCHOR, ANCHOR_TOP);
+         ObjectSetInteger(signalsChartID, visualCueUniqueName, OBJPROP_SELECTABLE, true);
+         registerChartObject(visualCueUniqueName);
+      }
+   }
+   
+   return result;
+}
+
 bool isBearishMarket() {
    static bool bearishMarket = false;
    bool bearishMarketNow = false;
@@ -302,7 +336,9 @@ bool isBearishMarket() {
    double midpointOfPreviousBar = candlePatterns.MidOpenClose(1); // symbolPriceData[1].close;
 
    if (symbolPriceData[1].open > symbolPriceData[1].close         // Previous candle was Bearish
-         && symbolPriceData[1].close < candlePatterns.MA(0)) {   // Previous price is below EMA
+         && symbolPriceData[1].close < candlePatterns.MA(0)       // Previous price is below EMA
+         // && spotPriceIsAtArmsLength(true)) {
+         && latestTickPrice.bid < candlePatterns.MA(0)) {         // Current spot price is below EMA
       bearishMarketNow = true;
    }
    
@@ -337,7 +373,9 @@ bool isBullishMarket() {
    double midpointOfPreviousBar = candlePatterns.MidOpenClose(1); // symbolPriceData[1].close;
       
    if (symbolPriceData[1].open < symbolPriceData[1].close         // Previous candle was bullish
-         && symbolPriceData[1].close > candlePatterns.MA(0)) {    // Previous price is above EMA
+         && symbolPriceData[1].close > candlePatterns.MA(0)       // Previous price is above EMA
+         // && spotPriceIsAtArmsLength(false)) {
+         && latestTickPrice.ask > candlePatterns.MA(0)) {         // Current spot price is above EMA
       bullishMarketNow = true;
    }
    

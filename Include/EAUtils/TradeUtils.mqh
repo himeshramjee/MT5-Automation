@@ -1,15 +1,20 @@
 input group "Positioning (All strategies)";
+input bool tradeWithBears = true;            // Allow Sell positions
+input bool tradeWithBulls = false;           // Allow Buy positions
 input datetime dontTradeUntilDatetime;       // Start time for live trading
-input double percentageLossLimit = 0.3;      // % loss limit per trade. e.g. 1 % of equity
-input double fixedLossLimit = 5.0;           // Fixed loss limit per trade. e.g. 20usd
+
 input int openPositionsLimit = 3;            // Open Positions Limit
 input double lotSize = 2.0;                  // Lots to Trade
-input double dailyProfitTarget = 9999.0;     // Daily profit target
-input double dailyLossLimit = 9999.0;        // Daily loss limit
 input double minimumRequiredEquity = 250.0;  // Minimum required equity to trade
 input bool closeEachDay = true;              // True to close open trades each day, else False
-bool tradeWithBears = true;                  // True to open Sell positions, else false
-bool tradeWithBulls = true;                  // True to open Buy positions, else false
+
+input double fixedLossLimit = 5.0;           // Fixed loss limit per trade. e.g. 20usd
+input double percentageLossLimit = 0.3;      // % loss limit per trade. e.g. 1 % of equity
+
+input double dailyProfitTarget = 9999.0;     // Daily profit target
+input double dailyLossLimit = 9999.0;        // Daily loss limit
+
+bool enterWithFloatingLosses = true;         // Open new positions if floating losses
 
 // Order parameters
 MqlTradeRequest mTradeRequest;   // To be used for sending our trade requests
@@ -142,8 +147,22 @@ bool newOrdersPermitted() {
    // Check value of open positions
    bool openPositionsExist = false;
    double valueOfOpenPositionsForSymbol = valueOfOpenPositionsForSymbol(_Symbol, openPositionsExist);
-   if (openPositionsExist && valueOfOpenPositionsForSymbol <= 5) {
+   if (!enterWithFloatingLosses && openPositionsExist && valueOfOpenPositionsForSymbol < 0) {
+      // PrintFormat("Value of open positions is %.2f <= %.2f and so no new positions will be entered.", valueOfOpenPositionsForSymbol, 5);
       return false;
+   }
+
+   // Check account has sufficient margin
+   static bool marginCheckPassed = false;
+   bool currentMarginCheck = accountHasSufficientMargin(_Symbol, lotSize, mTradeRequest.type);
+   if (!marginCheckPassed && currentMarginCheck) {
+      marginCheckPassed = true;
+      Print("Sufficient margin in account. New orders will be created.");
+   }
+   
+   if (marginCheckPassed && !currentMarginCheck) {
+      marginCheckPassed = false;
+      Print("Insufficient margin in account. New orders will not be created.");
    }
 
    // Check minimum required equity
@@ -159,7 +178,7 @@ bool newOrdersPermitted() {
       equityProtectionIsActive = false;
    }
 
-   return tradingEnabled && !equityProtectionIsActive && checkDailyTargetsAreOpen() && !openPositionLimitReached();
+   return tradingEnabled && marginCheckPassed && !equityProtectionIsActive && checkDailyTargetsAreOpen() && !openPositionLimitReached();
 }
 
 bool checkDailyTargetsAreOpen() {
@@ -281,6 +300,7 @@ bool openPositionLimitReached() {
       return true;
    }
    
+   //Print("Open position limit not reached. Go forth and trade, kind sir!");
    return false;
 }
 
@@ -321,7 +341,7 @@ void closePositionsAboveLossLimit() {
       // FIXME: Not accounting for slippage
       if (profitLoss <= lossLimitInCurrency) {
          // Loss is over user set limit so close the position
-         commentToAppend = StringFormat("Lost %s (%d). LL %.2f %s", positionType == POSITION_TYPE_BUY ? "Buy" : "Sell", ticket, lossLimitInCurrency, accountCurrency);
+         commentToAppend = StringFormat("%s-%d: -%.2f%s (> %.2f)", positionType == POSITION_TYPE_BUY ? "Buy" : "Sell", ticket, profitLoss, accountCurrency, lossLimitInCurrency);
          Print(commentToAppend);
          
          closePosition(magic, ticket, symbol, positionType, volume, commentToAppend, false);
@@ -411,10 +431,10 @@ bool sendOrder(bool isClosingOrder) {
      
    // Do we have enough cash to place an order?
    if (!isClosingOrder && !accountHasSufficientMargin(_Symbol, lotSize, mTradeRequest.type)) {
-      // Print("Insufficient funds in account. Disable this EA until you sort that out.");
+      Print("Insufficient funds in account. New orders will not be created.");
       return false;
    }
-
+   
    if (mTradeRequest.magic != EAMagic) {
       PrintFormat("EA Magic number mismatch. Send order request rejected. Expected %d but got %d.", mTradeRequest.magic, EAMagic);
       totalFailedOrderCount++;
@@ -433,7 +453,7 @@ bool sendOrder(bool isClosingOrder) {
       // Basic validation passed so check returned result now
       // Request is completed or order placed 
       if(mTradeResult.retcode == 10009 || mTradeResult.retcode == 10008) {
-         // Print("A new order has been successfully placed with Ticket#:", mTradeResult.order, ". ");
+         Print("A new order has been successfully placed with Ticket#:", mTradeResult.order, ". ");
          
          if (!isClosingOrder) {
             if (mTradeRequest.type == ORDER_TYPE_SELL) {
